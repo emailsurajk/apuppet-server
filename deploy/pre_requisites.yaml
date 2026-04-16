@@ -53,10 +53,13 @@
       state: present
     when: ansible_distribution_release != 'jammy'
 
-  - name: Remove old conflicting Docker repo file on Jammy
+  - name: Remove old conflicting Docker repo files on Jammy
     file:
-      path: /etc/apt/sources.list.d/docker.list
+      path: "{{ item }}"
       state: absent
+    loop:
+      - /etc/apt/sources.list.d/docker.list
+      - /etc/apt/sources.list.d/download_docker_com_linux_ubuntu.list
     when: ansible_distribution_release == 'jammy'
 
   - name: Add docker repository
