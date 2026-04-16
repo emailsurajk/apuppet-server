@@ -103,14 +103,21 @@
 
   - name: Download docker-compose
     get_url:
-      url: https://github.com/docker/compose/releases/download/1.26.0/docker-compose-{{ ansible_system }}-{{ ansible_machine }}
+      url: https://github.com/docker/compose/releases/download/1.29.2/docker-compose-{{ ansible_system }}-{{ ansible_machine }}
       dest: /usr/local/bin/docker-compose
       mode: 0755
       force: yes
 
+  - name: Ensure docker-compose is available at /usr/bin/docker-compose
+    file:
+      src: /usr/local/bin/docker-compose
+      dest: /usr/bin/docker-compose
+      state: link
+      force: yes
+
   - name: Download docker-compose autocompletion (for bash only)
     get_url:
-      url: https://raw.githubusercontent.com/docker/compose/1.26.0/contrib/completion/bash/docker-compose
+      url: https://raw.githubusercontent.com/docker/compose/1.29.2/contrib/completion/bash/docker-compose
       dest: /etc/bash_completion.d/docker-compose
     when: "'/bash' in ansible_user_shell"
 
