@@ -15,6 +15,15 @@
       msg: aPuppet need Ubuntu version 16.04 and later
     when: not (ansible_distribution == 'Ubuntu' and ansible_distribution_major_version|int >= 16)
 
+  - name: Remove old conflicting Docker repo files on Jammy
+    file:
+      path: "{{ item }}"
+      state: absent
+    loop:
+      - /etc/apt/sources.list.d/docker.list
+      - /etc/apt/sources.list.d/download_docker_com_linux_ubuntu.list
+    when: ansible_distribution_release == 'jammy'
+
   - name: Prepare Python 3
     import_tasks: tasks_python.yaml
 
