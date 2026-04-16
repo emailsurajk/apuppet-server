@@ -16,6 +16,12 @@ ansible_install_newstyle() {
   sudo apt-get install -y ansible=2.9.*
 }
 
+ansible_install_jammy() {
+  sudo apt-get -y update
+  sudo apt-get install -y python3-pip
+  pip3 install "ansible==2.9.*"
+}
+
 ansible_install_oldschool() {
   sudo apt-get -y update
   sudo apt install -y software-properties-common
@@ -42,8 +48,12 @@ case ${distro_name} in
     echo "OK, start installing on actual LTS ${distro_name} ${distro_version} .."
     ansible_install_newstyle
     ;;
+  "22.04")
+    echo "OK, start installing on actual LTS ${distro_name} ${distro_version} .."
+    ansible_install_jammy
+    ;;
   *)
-    echo "Could not install aPuppet on your Ubuntu version: $distro_version. We support only LTS Ubuntu versions: 16.04.*, 18.04.*, 20.04.*"
+    echo "Could not install aPuppet on your Ubuntu version: $distro_version. We support only LTS Ubuntu versions: 16.04.*, 18.04.*, 20.04.*, 22.04.*"
     exit 1
     ;;
   esac
