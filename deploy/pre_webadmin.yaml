@@ -14,13 +14,14 @@
 
     - name: Get builder image for web-admin
       docker_image:
-        name: "{{ node_gulp_builder_image_publisher }}/{{ node_gulp_builder_image_name }}:{{ node_gulp_builder_image_tag }}"
+        name: "node:18-alpine"
         source: pull
 
     - name: Start build web-admin
       docker_container:
-        image: "{{ node_gulp_builder_image_publisher }}/{{ node_gulp_builder_image_name }}:{{ node_gulp_builder_image_tag }}"
-        name: "{{ node_gulp_builder_image_name }}-container"
+        image: "node:18-alpine"
+        name: "web-admin-builder-container"
+        command: sh -c "cd /app && npm install && npx gulp"
         state: started
         volumes:
           - ../web-admin:/app
@@ -33,7 +34,7 @@
 
     - name: Remove builder
       docker_container:
-        name: "{{ node_gulp_builder_image_name }}-container"
+        name: "web-admin-builder-container"
         state: absent
 
     - name: Release web-admin assets
