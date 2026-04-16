@@ -1,18 +1,25 @@
 const
     gulp = require('gulp'),
     concat = require('gulp-concat'),
-    size = require('gulp-size'),
     clean = require('gulp-clean'),
     cleanCSS = require('gulp-clean-css'),
     terser = require('gulp-terser')
 ;
+
+async function gulpSize(options) {
+    const mod = await import('gulp-size');
+    return mod.default(options);
+}
 
 gulp.task('clean', function(){
     return gulp.src('dist/', {read: false})
         .pipe(clean())
 });
 
-gulp.task('styles', function(){
+gulp.task('styles', async function(){
+    const size = await gulpSize({
+        title: 'Size of CSS'
+    });
     return gulp.src([
         'css/main.css',
         'css/loader.css',
@@ -21,13 +28,14 @@ gulp.task('styles', function(){
         .pipe(cleanCSS({
             keepBreaks: true
         }))
-        .pipe(size({
-            title: 'Size of CSS'
-        }))
+        .pipe(size)
         .pipe(gulp.dest('dist/css'));
 });
 
-gulp.task('deps-styles', function(){
+gulp.task('deps-styles', async function(){
+    const size = await gulpSize({
+        title: 'Size of deps CSS'
+    });
     return gulp.src([
         'css/lib/bootstrap-4.3.1.min.css',
         'css/lib/font-awesome-4.6.2.min.css',
@@ -37,13 +45,14 @@ gulp.task('deps-styles', function(){
         .pipe(cleanCSS({
             keepBreaks: true
         }))
-        .pipe(size({
-            title: 'Size of deps CSS'
-        }))
+        .pipe(size)
         .pipe(gulp.dest('dist/css'));
 });
 
-gulp.task('scripts', function(){
+gulp.task('scripts', async function(){
+    const size = await gulpSize({
+        title: 'Size of JS'
+    });
     return gulp.src([
         'js/janus.js',
         'js/utils.js',
@@ -60,13 +69,14 @@ gulp.task('scripts', function(){
     ])
         .pipe(concat('app.min.js'))
         .pipe(terser())
-        .pipe(size({
-            title: 'Size of JS'
-        }))
+        .pipe(size)
         .pipe(gulp.dest('dist/js'));
 });
 
-gulp.task('deps-scripts', function() {
+gulp.task('deps-scripts', async function() {
+    const size = await gulpSize({
+        title: 'Size of JS libs'
+    });
     return gulp.src([
         'js/lib/jquery-3.3.1.min.js',
         'js/lib/bootstrap-4.3.1.min.js',
@@ -77,9 +87,7 @@ gulp.task('deps-scripts', function() {
     ])
         .pipe(concat('deps.min.js'))
         .pipe(terser())
-        .pipe(size({
-            title: 'Size of JS libs'
-        }))
+        .pipe(size)
         .pipe(gulp.dest('dist/js'));
 });
 
