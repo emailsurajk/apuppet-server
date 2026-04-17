@@ -183,6 +183,10 @@ function RemoteChat(chatElem, chatForm, messageInput, sendButton) {
         if (!data) {
             return;
         }
+        if (!this.textroom || typeof this.textroom.data !== 'function') {
+            console.warn('textroom: message dropped because textroom is not ready yet', data);
+            return;
+        }
 
         var messageData = {
             textroom: "message",

@@ -14,6 +14,8 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.watchRestartAttempted = false;
     this.MAX_WATCH_RETRIES = 8;
     this.WATCH_RETRY_DELAY_MS = 1500;
+    this.PLAY_RETRY_DELAY_MS = 250;
+    this.PLAY_RETRY_COUNT = 8;
 
     var obj = this;  // for event handlers
 
@@ -42,6 +44,34 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.remoteVideoElem.attr('width', w).attr('height', h);
     }
 
+    this.ensureVideoPlayback = function () {
+        const video = this.remoteVideoElem.get(0);
+        if (!video) {
+            return;
+        }
+
+        video.muted = true;
+        video.autoplay = true;
+        video.playsInline = true;
+
+        const tryPlay = function (left) {
+            if (left <= 0 || !video.srcObject) {
+                return;
+            }
+            const playPromise = video.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+                playPromise.catch(function (err) {
+                    console.debug('video: autoplay retry needed', err);
+                    setTimeout(function () {
+                        tryPlay(left - 1);
+                    }, obj.PLAY_RETRY_DELAY_MS);
+                });
+            }
+        };
+
+        tryPlay(this.PLAY_RETRY_COUNT);
+    }
+
     this.setStream = function (stream) {
         let streamChanged = false;
         if (this.stream !== stream) {
@@ -53,6 +83,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             this.cancelWatchRetry();
             if (streamChanged) {
                 Janus.attachMediaStream(this.remoteVideoElem.get(0), this.stream);
+                this.ensureVideoPlayback();
             }
             this.hasRemoteVideo();
             if (['chrome', 'firefox', 'safari'].indexOf(Janus.webRTCAdapter.browserDetails.browser) >= 0) {
@@ -146,6 +177,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.sendWatchRequest();
         this.scheduleWatchRetry();
         this.noRemoteVideo();
+        this.ensureVideoPlayback();
     }
 
     this.remoteVideoElem.on("playing", function (e) {

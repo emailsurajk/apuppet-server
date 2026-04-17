@@ -5,6 +5,7 @@ function GestureBuilder(divGesture, remoteChat){
     this.swipeStartPosition = [0, 0];
     this.swipeStartMillis = 0;
     this.swipeInProcess = false;
+    this.activePointerId = null;
 
     let obj = this;  // for event handlers
 
@@ -52,15 +53,51 @@ function GestureBuilder(divGesture, remoteChat){
         }
     }
 
-    this.divGesture.on('pointerdown', function(e){
+    this.pointerDown = function(e){
+        if (e.originalEvent && typeof e.originalEvent.isPrimary !== 'undefined' && !e.originalEvent.isPrimary) {
+            return;
+        }
+        obj.activePointerId = e.originalEvent ? e.originalEvent.pointerId : null;
+        const target = obj.divGesture.get(0);
+        if (target && target.setPointerCapture && obj.activePointerId !== null) {
+            target.setPointerCapture(obj.activePointerId);
+        }
+
         $(e.target).css('cursor', 'pointer');
         const pos = obj.extractPosition(e);
         obj.gestureStart(pos[0], pos[1]);
         e.preventDefault();
-    }).on('pointerup pointercancel pointerleave', function(e){
+    }
+
+    this.pointerUp = function(e){
+        if (obj.activePointerId !== null && e.originalEvent && typeof e.originalEvent.pointerId !== 'undefined' && e.originalEvent.pointerId !== obj.activePointerId) {
+            return;
+        }
+        obj.activePointerId = null;
         $(e.target).css('cursor', 'auto');
         const pos = obj.extractPosition(e);
         obj.gestureFinish(pos[0], pos[1]);
         e.preventDefault();
+    }
+
+    this.divGesture.on('contextmenu', function(e){
+        e.preventDefault();
     });
+
+    if (window.PointerEvent) {
+        this.divGesture.on('pointerdown', this.pointerDown)
+            .on('pointerup pointercancel pointerleave', this.pointerUp);
+    } else {
+        this.divGesture.on('mousedown touchstart', function(e){
+            $(e.target).css('cursor', 'pointer');
+            const pos = obj.extractPosition(e);
+            obj.gestureStart(pos[0], pos[1]);
+            e.preventDefault();
+        }).on('mouseup mouseleave touchend touchcancel', function(e){
+            $(e.target).css('cursor', 'auto');
+            const pos = obj.extractPosition(e);
+            obj.gestureFinish(pos[0], pos[1]);
+            e.preventDefault();
+        });
+    }
 }
