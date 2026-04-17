@@ -11,6 +11,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.watchPin = null;
     this.watchRetryTimeoutId = null;
     this.watchRetryCount = 0;
+    this.watchRestartAttempted = false;
     this.MAX_WATCH_RETRIES = 8;
     this.WATCH_RETRY_DELAY_MS = 1500;
 
@@ -85,7 +86,12 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
 
     this.scheduleWatchRetry = function () {
         this.cancelWatchRetry();
-        if (this.hasActiveVideoTrack() || this.watchRetryCount >= this.MAX_WATCH_RETRIES) {
+        if (this.hasActiveVideoTrack()) {
+            return;
+        }
+
+        if (this.watchRetryCount >= this.MAX_WATCH_RETRIES) {
+            this.forceWatchRestartIfNeeded();
             return;
         }
 
@@ -101,6 +107,26 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         }, this.WATCH_RETRY_DELAY_MS);
     }
 
+    this.forceWatchRestartIfNeeded = function () {
+        if (this.watchRestartAttempted || this.hasActiveVideoTrack() || !this.streaming) {
+            return;
+        }
+        this.watchRestartAttempted = true;
+
+        console.warn("streaming: retries exhausted, forcing stop/watch restart");
+        this.streaming.send({"message": {"request": "stop"}});
+
+        var self = this;
+        setTimeout(function () {
+            if (self.hasActiveVideoTrack()) {
+                return;
+            }
+            self.watchRetryCount = 0;
+            self.sendWatchRequest();
+            self.scheduleWatchRetry();
+        }, 400);
+    }
+
     this.refreshWatchIfNeeded = function (reason) {
         if (this.hasActiveVideoTrack()) {
             return;
@@ -114,6 +140,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.mountpointId = mountpointId;
         this.watchPin = pin;
         this.watchRetryCount = 0;
+        this.watchRestartAttempted = false;
         console.info("streaming: starting mountpoint id " + mountpointId + ' with pin ' + pin);
 
         this.sendWatchRequest();
@@ -146,6 +173,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         console.info('video: cleanup ..');
         this.cancelWatchRetry();
         this.watchRetryCount = 0;
+        this.watchRestartAttempted = false;
         this.videoStats.stop();
     }
 }
