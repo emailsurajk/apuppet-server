@@ -199,11 +199,12 @@ $(document).ready(function () {
                             // check error
                             else if (msg.error) {
                                 console.error('streaming: onmessage error', msg.error);
-                                ui.connAbort();
-
                                 if (msg.error_code === 455){
-                                    ui.showError(`Session ${remoteVideo.mountpointId} does not exist`, 'no_session');
+                                    // The mountpoint may be created slightly later than the first watch request.
+                                    console.warn(`streaming: mountpoint ${remoteVideo.mountpointId} is not ready yet, retrying watch`);
+                                    remoteVideo.refreshWatchIfNeeded('stream_not_ready');
                                 } else {
+                                    ui.connAbort();
                                     ui.showError(msg["error"], 'streaming_message_error');
                                     remoteVideo.stopStreaming();
                                 }

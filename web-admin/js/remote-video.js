@@ -8,6 +8,11 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
 
     this.videoResolution = null;
     this.isVideoAlreadyPlayed = false;
+    this.watchPin = null;
+    this.watchRetryTimeoutId = null;
+    this.watchRetryCount = 0;
+    this.MAX_WATCH_RETRIES = 8;
+    this.WATCH_RETRY_DELAY_MS = 1500;
 
     var obj = this;  // for event handlers
 
@@ -44,6 +49,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         }
 
         if (this.getStreamVideotracks().length > 0) {
+            this.cancelWatchRetry();
             if (streamChanged) {
                 Janus.attachMediaStream(this.remoteVideoElem.get(0), this.stream);
             }
@@ -57,12 +63,61 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         }
     }
 
+    this.hasActiveVideoTrack = function () {
+        return this.getStreamVideotracks().length > 0;
+    }
+
+    this.sendWatchRequest = function () {
+        if (!this.streaming || !this.mountpointId) {
+            return;
+        }
+        var body = {"request": "watch", "id": this.mountpointId, "pin": this.watchPin};
+        console.info("streaming: sending watch request for mountpoint " + this.mountpointId);
+        this.streaming.send({"message": body});
+    }
+
+    this.cancelWatchRetry = function () {
+        if (this.watchRetryTimeoutId !== null) {
+            clearTimeout(this.watchRetryTimeoutId);
+            this.watchRetryTimeoutId = null;
+        }
+    }
+
+    this.scheduleWatchRetry = function () {
+        this.cancelWatchRetry();
+        if (this.hasActiveVideoTrack() || this.watchRetryCount >= this.MAX_WATCH_RETRIES) {
+            return;
+        }
+
+        var self = this;
+        this.watchRetryTimeoutId = setTimeout(function () {
+            self.watchRetryCount += 1;
+            if (self.hasActiveVideoTrack()) {
+                return;
+            }
+            console.warn("streaming: no video track yet, retrying watch (attempt " + self.watchRetryCount + ")");
+            self.sendWatchRequest();
+            self.scheduleWatchRetry();
+        }, this.WATCH_RETRY_DELAY_MS);
+    }
+
+    this.refreshWatchIfNeeded = function (reason) {
+        if (this.hasActiveVideoTrack()) {
+            return;
+        }
+        console.info("streaming: refresh watch requested (" + reason + ")");
+        this.sendWatchRequest();
+        this.scheduleWatchRetry();
+    }
+
     this.startStreamMountpoint = function (mountpointId, pin) {
         this.mountpointId = mountpointId;
+        this.watchPin = pin;
+        this.watchRetryCount = 0;
         console.info("streaming: starting mountpoint id " + mountpointId + ' with pin ' + pin);
 
-        var body = {"request": "watch", "id": mountpointId, "pin": pin};
-        this.streaming.send({"message": body});
+        this.sendWatchRequest();
+        this.scheduleWatchRetry();
         this.noRemoteVideo();
     }
 
@@ -81,6 +136,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
 
     this.stopStreaming = function () {
         console.info('video: stopping streaming');
+        this.cancelWatchRetry();
         this.streaming.send({"message": {"request": "stop"}});
         this.streaming.hangup();
         this.cleanup();
@@ -88,6 +144,8 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
 
     this.cleanup = function () {
         console.info('video: cleanup ..');
+        this.cancelWatchRetry();
+        this.watchRetryCount = 0;
         this.videoStats.stop();
     }
 }
