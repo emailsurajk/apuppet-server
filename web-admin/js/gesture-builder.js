@@ -8,6 +8,24 @@ function GestureBuilder(divGesture, remoteChat){
 
     let obj = this;  // for event handlers
 
+    this.extractPosition = function(e){
+        const original = e.originalEvent || e;
+        const point = (original.changedTouches && original.changedTouches.length > 0)
+            ? original.changedTouches[0]
+            : (original.touches && original.touches.length > 0)
+                ? original.touches[0]
+                : original;
+
+        const rect = this.divGesture.get(0).getBoundingClientRect();
+        let x = point.clientX - rect.left;
+        let y = point.clientY - rect.top;
+
+        x = Math.max(0, Math.min(rect.width, x));
+        y = Math.max(0, Math.min(rect.height, y));
+
+        return [Math.round(x), Math.round(y)];
+    }
+
     this.gestureStart = function (offsetX, offsetY){
         console.debug('gesture: starts on ', [offsetX, offsetY]);
         this.swipeInProcess = true;
@@ -34,17 +52,15 @@ function GestureBuilder(divGesture, remoteChat){
         }
     }
 
-    this.divGesture.on('mousedown', function(e){
+    this.divGesture.on('pointerdown', function(e){
         $(e.target).css('cursor', 'pointer');
-        obj.gestureStart(e.offsetX, e.offsetY);
+        const pos = obj.extractPosition(e);
+        obj.gestureStart(pos[0], pos[1]);
         e.preventDefault();
-    }).on('mouseup', function(e){
+    }).on('pointerup pointercancel pointerleave', function(e){
         $(e.target).css('cursor', 'auto');
-        obj.gestureFinish(e.offsetX, e.offsetY);
-        e.preventDefault();
-    }).on('mouseleave', function(e){
-        $(e.target).css('cursor', 'auto');
-        obj.gestureFinish(e.offsetX, e.offsetY);
+        const pos = obj.extractPosition(e);
+        obj.gestureFinish(pos[0], pos[1]);
         e.preventDefault();
     });
 }

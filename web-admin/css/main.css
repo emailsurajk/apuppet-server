@@ -80,4 +80,11 @@ span.link:hover {
 	bottom: 0;
 	background-color: rgba(0, 0, 0, 0);
 	z-index: 100500;
+	touch-action: none;
+	pointer-events: auto;
+}
+
+#windowStream {
+	position: relative;
+	display: inline-block;
 }
