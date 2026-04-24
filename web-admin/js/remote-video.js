@@ -148,11 +148,13 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     }
 
     this.sendWatchRequest = function () {
+        console.debug('streaming: sendWatchRequest called, streaming=' + (!!this.streaming) + ', mountpointId=' + this.mountpointId + ', watchPin=' + this.watchPin);
         if (!this.streaming || !this.mountpointId) {
+            console.warn('streaming: sendWatchRequest precondition failed - cannot send (streaming=' + (!!this.streaming) + ', mountpointId=' + this.mountpointId + ')');
             return;
         }
         var body = {"request": "watch", "id": this.mountpointId, "pin": this.watchPin};
-        console.info("streaming: sending watch request for mountpoint " + this.mountpointId);
+        console.info("streaming: sending watch request for mountpoint " + this.mountpointId + " pin=" + this.watchPin);
         this.streaming.send({"message": body});
     }
 
@@ -166,10 +168,12 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.scheduleWatchRetry = function () {
         this.cancelWatchRetry();
         if (this.hasActiveVideoTrack()) {
+            console.debug('streaming: video track already active, no retry needed');
             return;
         }
 
         if (this.watchRetryCount >= this.MAX_WATCH_RETRIES) {
+            console.warn('streaming: max retries (' + this.MAX_WATCH_RETRIES + ') reached, forcing watch restart');
             this.forceWatchRestartIfNeeded();
             return;
         }
@@ -178,31 +182,42 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.watchRetryTimeoutId = setTimeout(function () {
             self.watchRetryCount += 1;
             if (self.hasActiveVideoTrack()) {
+                console.debug('streaming: video track became active, stopping retries');
                 return;
             }
-            console.warn("streaming: no video track yet, retrying watch (attempt " + self.watchRetryCount + ")");
+            console.warn("streaming: no video track yet, retrying watch (attempt " + self.watchRetryCount + "/" + self.MAX_WATCH_RETRIES + ") in " + self.WATCH_RETRY_DELAY_MS + "ms");
             self.sendWatchRequest();
             self.scheduleWatchRetry();
         }, this.WATCH_RETRY_DELAY_MS);
     }
 
     this.forceWatchRestartIfNeeded = function () {
-        if (this.watchRestartAttempted || this.hasActiveVideoTrack() || !this.streaming) {
+        var streaming = !!this.streaming;
+        var videoActive = this.hasActiveVideoTrack();
+        var attempted = this.watchRestartAttempted;
+        console.debug('streaming: forceWatchRestartIfNeeded check: streaming=' + streaming + ', videoActive=' + videoActive + ', alreadyAttempted=' + attempted);
+        
+        if (attempted || videoActive || !this.streaming) {
+            if (attempted) console.debug('streaming: already attempted restart, skipping');
+            if (videoActive) console.debug('streaming: video already active, skipping restart');
+            if (!this.streaming) console.warn('streaming: no streaming handle, cannot restart');
             return;
         }
         this.watchRestartAttempted = true;
 
-        console.warn("streaming: retries exhausted, forcing stop/watch restart");
+        console.warn("streaming: retries exhausted, forcing stop/watch restart after 3s pause");
         this.streaming.send({"message": {"request": "stop"}});
 
         var self = this;
         setTimeout(function () {
             if (self.hasActiveVideoTrack()) {
+                console.debug('streaming: video became active during restart pause');
                 return;
             }
             // Reset so the full retry cycle runs again — the Android side may take
             // a long time to start streaming (e.g., waiting for MediaProjection
             // permission on a locked device), so we must keep trying indefinitely.
+            console.info('streaming: restarting watch cycle (resetting attempt flag)');
             self.watchRetryCount = 0;
             self.watchRestartAttempted = false;
             self.sendWatchRequest();
@@ -220,11 +235,13 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     }
 
     this.startStreamMountpoint = function (mountpointId, pin) {
+        console.info("streaming: startStreamMountpoint called with id=" + mountpointId + " pin=" + pin);
         this.mountpointId = mountpointId;
         this.watchPin = pin;
         this.watchRetryCount = 0;
         this.watchRestartAttempted = false;
-        console.info("streaming: starting mountpoint id " + mountpointId + ' with pin ' + pin);
+        console.info("streaming: initializing watch cycle for mountpoint " + mountpointId);
+        console.debug('streaming: this.streaming handle is: ' + (this.streaming ? 'SET' : 'NULL'));
 
         this.sendWatchRequest();
         this.scheduleWatchRetry();
