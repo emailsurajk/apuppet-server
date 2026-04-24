@@ -12,7 +12,7 @@ async function gulpSize(options) {
 }
 
 gulp.task('clean', function(){
-    return gulp.src('dist/', {read: false})
+    return gulp.src('dist/', {read: false, allowEmpty: true})
         .pipe(clean())
 });
 
