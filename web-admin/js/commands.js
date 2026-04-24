@@ -6,7 +6,6 @@ function Commands(remoteChat, remoteVideo){
 
     this.commands.set('streamingVideoResolution', function(w, h){
         obj.removeVideo.setResolution(w, h);
-        obj.removeVideo.refreshWatchIfNeeded('resolution_update');
     });
     this.commands.set('pong', function(timestamp){
         ui.emit('SessionMonitoring.onPong', timestamp);

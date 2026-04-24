@@ -254,10 +254,15 @@ $(document).ready(function () {
                             // check error
                             else if (msg.error) {
                                 console.error('streaming: onmessage error', msg.error);
-                                if (msg.error_code === 455){
+                                if (msg.error_code === 455) {
                                     // The mountpoint may be created slightly later than the first watch request.
                                     console.warn(`streaming: mountpoint ${remoteVideo.mountpointId} is not ready yet, retrying watch`);
                                     remoteVideo.refreshWatchIfNeeded('stream_not_ready');
+                                } else if (msg.error && msg.error.toString().toLowerCase().indexOf('already watching') !== -1) {
+                                    // Benign: we sent a duplicate watch request (e.g. from stall detector restart).
+                                    // The existing subscription is intact — just consume any pending controlled-stop flag.
+                                    remoteVideo.consumeControlledStop();
+                                    console.info('streaming: duplicate watch ignored (already watching), continuing');
                                 } else {
                                     ui.connAbort();
                                     ui.showError(msg["error"], 'streaming_message_error');
