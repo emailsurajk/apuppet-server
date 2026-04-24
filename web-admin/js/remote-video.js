@@ -254,6 +254,14 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             var status = hasRtpData ? 'RTP flowing, awaiting decoder' : 'no RTP, no decoder';
             console.warn('video: stall detector poll ' + pollCount + '/' + STALL_TIMEOUT_POLLS + ' - readyState=' + v.readyState + ', videoWidth=' + v.videoWidth + ', ' + status);
             
+            // After 10 seconds (poll 4), notify user that H.264 decoder is initializing
+            if (hasRtpData && pollCount === 4) {
+                console.info('video: H.264 decoder initializing (slow)... RTP is flowing, please wait');
+                if ($('#streamingStatus').length) {
+                    $('#streamingStatus').text('Initializing video decoder...').removeClass('d-none');
+                }
+            }
+            
             if (pollCount >= STALL_TIMEOUT_POLLS) {
                 // If RTP is flowing, let it wait more. Only give up if RTP stopped.
                 if (hasRtpData) {
