@@ -43,7 +43,7 @@ function GestureBuilder(divGesture, remoteChat){
     }
 
     this.getRotation = function(){
-        let rotation = parseInt(this.divGesture.attr('data-rotation') || '0', 10);
+        let rotation = parseInt(this.divGesture.attr('data-touch-rotation') || this.divGesture.attr('data-rotation') || '0', 10);
         if (!Number.isFinite(rotation)) {
             rotation = 0;
         }

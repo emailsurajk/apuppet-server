@@ -6,10 +6,11 @@ function Commands(remoteChat, remoteVideo){
 
     this.commands.set('streamingVideoResolution', function(w, h, rotation){
         obj.removeVideo.setResolution(w, h);
-        // Keep auto-rotation disabled by default because many Android devices
-        // already deliver an upright decoded frame; applying metadata rotation
-        // can make gesture axes diverge from what user sees.
-        // Manual "Rotate View" control remains available for edge cases.
+        // Keep video auto-rotation disabled, but rotate touch mapping so gestures
+        // align with device coordinates when stream metadata carries rotation.
+        var androidRotation = ((parseInt(rotation, 10) || 0) % 360 + 360) % 360;
+        var touchRotation = (360 - androidRotation) % 360;
+        $('#deviceGestures').attr('data-touch-rotation', touchRotation);
     });
     this.commands.set('pong', function(timestamp){
         ui.emit('SessionMonitoring.onPong', timestamp);

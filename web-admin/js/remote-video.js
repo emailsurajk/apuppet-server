@@ -52,6 +52,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.remoteVideoElem.css('transform', 'rotate(' + normalized + 'deg)');
         this.remoteVideoElem.css('transform-origin', 'center center');
         $('#deviceGestures').attr('data-rotation', normalized);
+        $('#deviceGestures').attr('data-touch-rotation', normalized);
         $('#btnRotateVideo').text('Rotate View (' + normalized + '°)');
         this._applyLayout();
     }
