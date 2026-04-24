@@ -12,6 +12,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.watchRetryTimeoutId = null;
     this.watchRetryCount = 0;
     this.watchRestartAttempted = false;
+    this.stallDetectorId = null;
     this.MAX_WATCH_RETRIES = 8;
     this.WATCH_RETRY_DELAY_MS = 1500;
     this.PLAY_RETRY_DELAY_MS = 250;
@@ -178,6 +179,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
                     console.error('streaming: EXCEPTION in Janus.attachMediaStream: ' + e.message, e);
                 }
                 this.ensureVideoPlayback();
+                this.startStallDetector();
             } else {
                 console.info('streaming: stream unchanged, skipping reattach');
                 this.ensureVideoPlayback();
@@ -194,7 +196,53 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     }
 
     this.hasActiveVideoTrack = function () {
-        return this.getStreamVideotracks().length > 0;
+        if (this.getStreamVideotracks().length === 0) return false;
+        // A track exists but may carry no data yet (muted, readyState=0).
+        // Only consider it truly active once the video element has received frames.
+        var v = this.remoteVideoElem.get(0);
+        return v && (v.readyState > 0 || v.videoWidth > 0);
+    }
+
+    this.cancelStallDetector = function () {
+        if (this.stallDetectorId !== null) {
+            clearInterval(this.stallDetectorId);
+            this.stallDetectorId = null;
+        }
+    }
+
+    this.startStallDetector = function () {
+        this.cancelStallDetector();
+        var self = this;
+        var pollCount = 0;
+        var STALL_TIMEOUT_POLLS = 10;  // 10 x 3s = 30s before resubscribing
+        this.stallDetectorId = setInterval(function () {
+            var v = self.remoteVideoElem.get(0);
+            if (!v || !v.srcObject) {
+                self.cancelStallDetector();
+                return;
+            }
+            if (v.readyState > 0 || v.videoWidth > 0) {
+                console.info('video: stall detector - data is flowing (readyState=' + v.readyState + ', videoWidth=' + v.videoWidth + '), stopping detector');
+                self.cancelStallDetector();
+                return;
+            }
+            pollCount++;
+            console.warn('video: stall detector poll ' + pollCount + '/' + STALL_TIMEOUT_POLLS + ' - readyState=' + v.readyState + ', videoWidth=' + v.videoWidth + ', paused=' + v.paused);
+            if (pollCount >= STALL_TIMEOUT_POLLS) {
+                console.warn('video: stall detector - no data after ' + (STALL_TIMEOUT_POLLS * 3) + 's, resubscribing');
+                self.cancelStallDetector();
+                // Send stop then re-watch to force Janus to renegotiate
+                if (self.streaming) {
+                    self.streaming.send({"message": {"request": "stop"}});
+                }
+                setTimeout(function () {
+                    self.watchRetryCount = 0;
+                    self.watchRestartAttempted = false;
+                    self.sendWatchRequest();
+                    self.scheduleWatchRetry();
+                }, 1500);
+            }
+        }, 3000);
     }
 
     this.sendWatchRequest = function () {
@@ -303,6 +351,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         console.debug('video: playing event', e);
 
         if (obj.getStreamVideotracks().length > 0) {
+            obj.cancelStallDetector();
             obj.videoStats.start();
             remoteVideoElem = obj.remoteVideoElem.get(0);
             // Keep the device-reported resolution when available. Falling back to
@@ -319,6 +368,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.stopStreaming = function () {
         console.info('video: stopping streaming');
         this.cancelWatchRetry();
+        this.cancelStallDetector();
         this.streaming.send({"message": {"request": "stop"}});
         this.streaming.hangup();
         this.cleanup();
@@ -327,6 +377,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.cleanup = function () {
         console.info('video: cleanup ..');
         this.cancelWatchRetry();
+        this.cancelStallDetector();
         this.watchRetryCount = 0;
         this.watchRestartAttempted = false;
         this.videoStats.stop();
