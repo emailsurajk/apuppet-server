@@ -98,8 +98,12 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             console.warn('video: ensureVideoPlayback - no video element found');
             return;
         }
+        if (!video.srcObject) {
+            console.warn('video: ensureVideoPlayback - srcObject is null, skipping play');
+            return;
+        }
 
-        console.info('video: ensureVideoPlayback called, srcObject=' + (video.srcObject ? 'SET' : 'NULL') + ', readyState=' + video.readyState + ', networkState=' + video.networkState);
+        console.info('video: ensureVideoPlayback called, readyState=' + video.readyState + ', paused=' + video.paused + ', videoWidth=' + video.videoWidth + 'x' + video.videoHeight);
 
         video.muted = true;
         video.autoplay = true;
@@ -115,16 +119,14 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             if (playPromise && typeof playPromise.catch === 'function') {
                 playPromise
                     .then(function() {
-                        console.info('video: play() succeeded immediately');
+                        console.info('video: play() succeeded');
                     })
                     .catch(function (err) {
-                        console.debug('video: play() failed, autoplay retry needed. Error: ' + err.message + ' (code=' + err.name + ')');
+                        console.warn('video: play() failed (' + err.name + ': ' + err.message + '), retrying in ' + obj.PLAY_RETRY_DELAY_MS + 'ms');
                         setTimeout(function () {
                             tryPlay(left - 1);
                         }, obj.PLAY_RETRY_DELAY_MS);
                     });
-            } else {
-                console.debug('video: play() returned non-promise or null');
             }
         };
 
@@ -134,7 +136,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.setStream = function (stream) {
         var videoTrackCount = (stream ? stream.getVideoTracks().length : 0);
         console.info('streaming: setStream called, stream=' + (!!stream) + ', tracks=' + videoTrackCount + ', streamChanged=' + (this.stream !== stream));
-        
+
         let streamChanged = false;
         if (this.stream !== stream) {
             this.stream = stream;
@@ -142,21 +144,43 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         }
 
         if (this.getStreamVideotracks().length > 0) {
-            console.info('streaming: setStream proceeding - stream has ' + this.getStreamVideotracks().length + ' video track(s)');
+            console.info('streaming: setStream proceeding - ' + this.getStreamVideotracks().length + ' video track(s)');
             var videoElem = this.remoteVideoElem.get(0);
-            console.info('video element state: tag=' + (videoElem ? videoElem.tagName : 'NULL') + ', id=' + (videoElem ? videoElem.id : 'NULL'));
-            console.info('video element dims: width=' + (videoElem ? videoElem.width : '?') + ', height=' + (videoElem ? videoElem.height : '?') + ', videoWidth=' + (videoElem ? videoElem.videoWidth : '?') + ', videoHeight=' + (videoElem ? videoElem.videoHeight : '?'));
-            console.info('video element CSS: display=' + (videoElem ? window.getComputedStyle(videoElem).display : '?') + ', visibility=' + (videoElem ? window.getComputedStyle(videoElem).visibility : '?') + ', opacity=' + (videoElem ? window.getComputedStyle(videoElem).opacity : '?'));
-            console.info('#windowStream CSS: display=' + (document.getElementById('windowStream') ? window.getComputedStyle(document.getElementById('windowStream')).display : 'NOT_FOUND'));
-            
+            if (!videoElem) {
+                console.error('streaming: setStream FATAL - video element not found in DOM, cannot attach stream');
+                return;
+            }
+            console.info('video elem: tag=' + videoElem.tagName + ', id=' + videoElem.id + ', display=' + window.getComputedStyle(videoElem).display + ', width=' + videoElem.clientWidth + 'x' + videoElem.clientHeight);
+
+            // Log video track muted state — muted=true means no RTP data yet
+            var tracks = this.stream.getVideoTracks();
+            for (var i = 0; i < tracks.length; i++) {
+                var t = tracks[i];
+                console.info('video track[' + i + ']: enabled=' + t.enabled + ', muted=' + t.muted + ', readyState=' + t.readyState + ', label=' + t.label);
+                if (t.muted) {
+                    console.warn('video track[' + i + '] is MUTED (no RTP data yet) - video will appear when Android starts streaming');
+                    // Listen for unmute to re-trigger playback once data arrives
+                    var self = this;
+                    t.addEventListener('unmute', function() {
+                        console.info('video track: UNMUTED - RTP data is now flowing, ensuring playback');
+                        self.ensureVideoPlayback();
+                    });
+                }
+            }
+
             this.cancelWatchRetry();
             if (streamChanged) {
-                console.info('streaming: stream changed, attaching to video element');
-                Janus.attachMediaStream(videoElem, this.stream);
-                console.info('video element after attachMediaStream: srcObject=' + (videoElem.srcObject ? 'SET' : 'NULL') + ', tracks=' + (videoElem.srcObject ? videoElem.srcObject.getTracks().length : 0));
+                console.info('streaming: attaching stream to video element');
+                try {
+                    Janus.attachMediaStream(videoElem, this.stream);
+                    console.info('video elem after attach: srcObject=' + (videoElem.srcObject ? 'SET' : 'NULL') + ', srcObjectTracks=' + (videoElem.srcObject ? videoElem.srcObject.getTracks().length : 0));
+                } catch (e) {
+                    console.error('streaming: EXCEPTION in Janus.attachMediaStream: ' + e.message, e);
+                }
                 this.ensureVideoPlayback();
             } else {
                 console.info('streaming: stream unchanged, skipping reattach');
+                this.ensureVideoPlayback();
             }
             this.hasRemoteVideo();
             if (['chrome', 'firefox', 'safari'].indexOf(Janus.webRTCAdapter.browserDetails.browser) >= 0) {
