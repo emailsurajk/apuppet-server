@@ -299,6 +299,14 @@ $(document).ready(function () {
         }
     });
 
+    // Rotate video button
+    $('#btnRotateVideo').on('click', function(e){
+        if(remoteVideo){
+            var deg = remoteVideo.rotateClockwise();
+            $('#btnRotateVideo').text('Rotate View (' + deg + '°)');
+        }
+    });
+
     // Disconnect button
     $('#btnDisconnect').on('click', function(e){
         ui.emit('Session.Disconnect');

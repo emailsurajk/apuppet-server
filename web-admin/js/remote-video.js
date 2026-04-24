@@ -16,6 +16,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.WATCH_RETRY_DELAY_MS = 1500;
     this.PLAY_RETRY_DELAY_MS = 250;
     this.PLAY_RETRY_COUNT = 8;
+    this.rotationDeg = 0;
 
     var obj = this;  // for event handlers
 
@@ -39,6 +40,23 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.streaming = streaming;
     }
 
+    this.getRotation = function(){
+        return this.rotationDeg;
+    }
+
+    this.setRotation = function(deg){
+        var normalized = ((parseInt(deg, 10) || 0) % 360 + 360) % 360;
+        this.rotationDeg = normalized;
+        this.remoteVideoElem.css('transform', 'rotate(' + normalized + 'deg)');
+        this.remoteVideoElem.css('transform-origin', 'center center');
+        $('#deviceGestures').attr('data-rotation', normalized);
+    }
+
+    this.rotateClockwise = function(){
+        this.setRotation(this.rotationDeg + 90);
+        return this.rotationDeg;
+    }
+
     this.setResolution = function(w, h){
         const width = parseInt(w, 10);
         const height = parseInt(h, 10);
@@ -47,6 +65,9 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         }
         this.videoResolution = [width, height];
         this.remoteVideoElem.attr('width', width).attr('height', height);
+        $('#deviceGestures')
+            .attr('data-video-width', width)
+            .attr('data-video-height', height);
     }
 
     this.ensureVideoPlayback = function () {
@@ -217,4 +238,6 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.watchRestartAttempted = false;
         this.videoStats.stop();
     }
+
+    this.setRotation(0);
 }

@@ -24,7 +24,58 @@ function GestureBuilder(divGesture, remoteChat){
         x = Math.max(0, Math.min(rect.width, x));
         y = Math.max(0, Math.min(rect.height, y));
 
-        return [Math.round(x), Math.round(y)];
+        const mapped = this.mapDisplayToSource(x, y, rect.width, rect.height);
+
+        return [Math.round(mapped[0]), Math.round(mapped[1])];
+    }
+
+    this.getRotation = function(){
+        let rotation = parseInt(this.divGesture.attr('data-rotation') || '0', 10);
+        if (!Number.isFinite(rotation)) {
+            rotation = 0;
+        }
+        rotation = ((rotation % 360) + 360) % 360;
+        return rotation;
+    }
+
+    this.getSourceSize = function(displayWidth, displayHeight){
+        const attrW = parseFloat(this.divGesture.attr('data-video-width'));
+        const attrH = parseFloat(this.divGesture.attr('data-video-height'));
+        const sourceWidth = Number.isFinite(attrW) && attrW > 0 ? attrW : displayWidth;
+        const sourceHeight = Number.isFinite(attrH) && attrH > 0 ? attrH : displayHeight;
+        return [sourceWidth, sourceHeight];
+    }
+
+    this.mapDisplayToSource = function(x, y, displayWidth, displayHeight){
+        if (displayWidth <= 0 || displayHeight <= 0) {
+            return [x, y];
+        }
+
+        const rotation = this.getRotation();
+        const sourceSize = this.getSourceSize(displayWidth, displayHeight);
+        const sourceWidth = sourceSize[0];
+        const sourceHeight = sourceSize[1];
+
+        const nx = x / displayWidth;
+        const ny = y / displayHeight;
+
+        let sx = nx * sourceWidth;
+        let sy = ny * sourceHeight;
+
+        if (rotation === 90) {
+            sx = ny * sourceWidth;
+            sy = (1 - nx) * sourceHeight;
+        } else if (rotation === 180) {
+            sx = (1 - nx) * sourceWidth;
+            sy = (1 - ny) * sourceHeight;
+        } else if (rotation === 270) {
+            sx = (1 - ny) * sourceWidth;
+            sy = nx * sourceHeight;
+        }
+
+        sx = Math.max(0, Math.min(sourceWidth, sx));
+        sy = Math.max(0, Math.min(sourceHeight, sy));
+        return [sx, sy];
     }
 
     this.gestureStart = function (offsetX, offsetY){
