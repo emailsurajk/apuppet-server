@@ -95,8 +95,11 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.ensureVideoPlayback = function () {
         const video = this.remoteVideoElem.get(0);
         if (!video) {
+            console.warn('video: ensureVideoPlayback - no video element found');
             return;
         }
+
+        console.info('video: ensureVideoPlayback called, srcObject=' + (video.srcObject ? 'SET' : 'NULL') + ', readyState=' + video.readyState + ', networkState=' + video.networkState);
 
         video.muted = true;
         video.autoplay = true;
@@ -104,16 +107,24 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
 
         const tryPlay = function (left) {
             if (left <= 0 || !video.srcObject) {
+                console.debug('video: tryPlay stopping - left=' + left + ', srcObject=' + (video.srcObject ? 'SET' : 'NULL'));
                 return;
             }
+            console.debug('video: attempting play (tries left=' + left + ')');
             const playPromise = video.play();
             if (playPromise && typeof playPromise.catch === 'function') {
-                playPromise.catch(function (err) {
-                    console.debug('video: autoplay retry needed', err);
-                    setTimeout(function () {
-                        tryPlay(left - 1);
-                    }, obj.PLAY_RETRY_DELAY_MS);
-                });
+                playPromise
+                    .then(function() {
+                        console.info('video: play() succeeded immediately');
+                    })
+                    .catch(function (err) {
+                        console.debug('video: play() failed, autoplay retry needed. Error: ' + err.message + ' (code=' + err.name + ')');
+                        setTimeout(function () {
+                            tryPlay(left - 1);
+                        }, obj.PLAY_RETRY_DELAY_MS);
+                    });
+            } else {
+                console.debug('video: play() returned non-promise or null');
             }
         };
 
@@ -121,6 +132,9 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     }
 
     this.setStream = function (stream) {
+        var videoTrackCount = (stream ? stream.getVideoTracks().length : 0);
+        console.info('streaming: setStream called, stream=' + (!!stream) + ', tracks=' + videoTrackCount + ', streamChanged=' + (this.stream !== stream));
+        
         let streamChanged = false;
         if (this.stream !== stream) {
             this.stream = stream;
@@ -128,16 +142,27 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         }
 
         if (this.getStreamVideotracks().length > 0) {
+            console.info('streaming: setStream proceeding - stream has ' + this.getStreamVideotracks().length + ' video track(s)');
+            var videoElem = this.remoteVideoElem.get(0);
+            console.debug('video element: tag=' + (videoElem ? videoElem.tagName : 'NULL') + ', width=' + (videoElem ? videoElem.width : 'NULL') + ', height=' + (videoElem ? videoElem.height : 'NULL'));
+            console.debug('video element visibility: display=' + (videoElem ? window.getComputedStyle(videoElem).display : '?') + ', visibility=' + (videoElem ? window.getComputedStyle(videoElem).visibility : '?'));
+            console.debug('#windowStream: display=' + (document.getElementById('windowStream') ? window.getComputedStyle(document.getElementById('windowStream')).display : 'NOT_FOUND'));
+            
             this.cancelWatchRetry();
             if (streamChanged) {
-                Janus.attachMediaStream(this.remoteVideoElem.get(0), this.stream);
+                console.info('streaming: stream changed, attaching to video element');
+                Janus.attachMediaStream(videoElem, this.stream);
+                console.debug('video element after attachMediaStream: srcObject=' + (videoElem.srcObject ? 'SET' : 'NULL'));
                 this.ensureVideoPlayback();
+            } else {
+                console.debug('streaming: stream unchanged, skipping reattach');
             }
             this.hasRemoteVideo();
             if (['chrome', 'firefox', 'safari'].indexOf(Janus.webRTCAdapter.browserDetails.browser) >= 0) {
                 this.videoStats.start();
             }
         } else {
+            console.warn('streaming: setStream - no video tracks in stream, showing loader');
             this.noRemoteVideo();
             this.videoStats.stop();
         }
@@ -280,6 +305,71 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.watchRetryCount = 0;
         this.watchRestartAttempted = false;
         this.videoStats.stop();
+    }
+
+    // Attach comprehensive video element event listeners for diagnostics
+    var videoElement = this.remoteVideoElem.get(0);
+    if (videoElement) {
+        var eventLog = function(eventName) {
+            return function(e) {
+                var state = {
+                    srcObject: !!videoElement.srcObject,
+                    readyState: videoElement.readyState,
+                    networkState: videoElement.networkState,
+                    bufferedSeconds: videoElement.buffered.length > 0 ? videoElement.buffered.end(0) : 0,
+                    currentTime: videoElement.currentTime.toFixed(2),
+                    duration: videoElement.duration > 0 ? videoElement.duration.toFixed(2) : 'unknown',
+                    paused: videoElement.paused,
+                    ended: videoElement.ended,
+                    videoWidth: videoElement.videoWidth,
+                    videoHeight: videoElement.videoHeight
+                };
+                console.debug('video: ' + eventName + ' event', state);
+            };
+        };
+        
+        videoElement.addEventListener('loadstart', eventLog('loadstart'));
+        videoElement.addEventListener('progress', eventLog('progress'));
+        videoElement.addEventListener('suspend', eventLog('suspend'));
+        videoElement.addEventListener('abort', eventLog('abort'));
+        videoElement.addEventListener('error', function(e) {
+            console.error('video: error event - code=' + videoElement.error.code + ' msg=' + videoElement.error.message);
+        });
+        videoElement.addEventListener('emptied', eventLog('emptied'));
+        videoElement.addEventListener('loadedmetadata', function(e) {
+            console.info('video: loadedmetadata - ' + videoElement.videoWidth + 'x' + videoElement.videoHeight);
+        });
+        videoElement.addEventListener('loadeddata', eventLog('loadeddata'));
+        videoElement.addEventListener('canplay', function(e) {
+            console.info('video: canplay - ready to play');
+        });
+        videoElement.addEventListener('canplaythrough', eventLog('canplaythrough'));
+        videoElement.addEventListener('playing', function(e) {
+            console.info('video: PLAYING - frames flowing to display');
+        });
+        videoElement.addEventListener('seeking', eventLog('seeking'));
+        videoElement.addEventListener('seeked', eventLog('seeked'));
+        videoElement.addEventListener('ended', eventLog('ended'));
+        videoElement.addEventListener('durationchange', function(e) {
+            console.debug('video: durationchange - ' + videoElement.duration);
+        });
+        videoElement.addEventListener('timeupdate', function(e) {
+            // Only log occasionally to avoid spam
+            if (Math.floor(videoElement.currentTime * 10) % 10 === 0) {
+                console.debug('video: timeupdate - ' + videoElement.currentTime.toFixed(1) + 's');
+            }
+        });
+        videoElement.addEventListener('pause', eventLog('pause'));
+        videoElement.addEventListener('play', function(e) {
+            console.info('video: play event triggered');
+        });
+        videoElement.addEventListener('ratechange', eventLog('ratechange'));
+        videoElement.addEventListener('resize', function(e) {
+            console.info('video: resize - ' + videoElement.videoWidth + 'x' + videoElement.videoHeight);
+        });
+        videoElement.addEventListener('volumechange', eventLog('volumechange'));
+    } else {
+        console.warn('video: could not attach event listeners - video element not found');
     }
 
     this.setRotation(0);

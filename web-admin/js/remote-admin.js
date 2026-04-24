@@ -46,6 +46,55 @@ $(document).ready(function () {
     console.debug('janus debug level:', janusDebugLevel);
     window['debugUtils'] = new DebugUtils(remoteChat);
 
+    // Video diagnostics - call this from console if video isn't displaying
+    window['videoDiag'] = function() {
+        var v = document.getElementById('streamingRemoteVideo');
+        var ws = document.getElementById('windowStream');
+        if (!v) {
+            console.error('videoDiag: video element not found');
+            return;
+        }
+        console.group('VIDEO DIAGNOSTICS');
+        console.log('Video Element:', {
+            tagName: v.tagName,
+            id: v.id,
+            srcObject: !!v.srcObject,
+            srcObjectTracks: v.srcObject ? v.srcObject.getTracks().length : 0,
+            srcObjectVideoTracks: v.srcObject ? v.srcObject.getVideoTracks().length : 0,
+            width: v.width,
+            height: v.height,
+            videoWidth: v.videoWidth,
+            videoHeight: v.videoHeight,
+            readyState: v.readyState,
+            networkState: v.networkState,
+            paused: v.paused,
+            ended: v.ended,
+            currentTime: v.currentTime.toFixed(2),
+            duration: v.duration > 0 ? v.duration.toFixed(2) : 'unknown',
+            buffered: v.buffered.length > 0 ? v.buffered.end(0).toFixed(2) + 's' : 'none',
+        });
+        console.log('Video Visibility:', {
+            display: window.getComputedStyle(v).display,
+            visibility: window.getComputedStyle(v).visibility,
+            opacity: window.getComputedStyle(v).opacity,
+            width: window.getComputedStyle(v).width,
+            height: window.getComputedStyle(v).height,
+        });
+        console.log('windowStream Container:', {
+            display: ws ? window.getComputedStyle(ws).display : 'NOT_FOUND',
+            position: ws ? window.getComputedStyle(ws).position : 'N/A',
+            width: ws ? window.getComputedStyle(ws).width : 'N/A',
+            height: ws ? window.getComputedStyle(ws).height : 'N/A',
+        });
+        console.log('Video in DOM:', {
+            inDOM: !!v.offsetParent || v.display !== 'none',
+            offsetParent: !!v.offsetParent,
+            clientWidth: v.clientWidth,
+            clientHeight: v.clientHeight,
+        });
+        console.groupEnd();
+    };
+
     ui.on('CheatCodes.onCheatEntered', function(cheat){
         if (cheat === 'needtodebug') {
             window.debugUtils.enable();
@@ -242,7 +291,15 @@ $(document).ready(function () {
                         },
 
                         onremotestream: function (stream) {
-                            console.info("streaming: got remote stream", stream);
+                            var trackCount = (stream ? stream.getTracks().length : 0);
+                            var videoTrackCount = (stream ? stream.getVideoTracks().length : 0);
+                            var audioTrackCount = (stream ? stream.getAudioTracks().length : 0);
+                            console.info("streaming: got remote stream, total=" + trackCount + ", video=" + videoTrackCount + ", audio=" + audioTrackCount, stream);
+                            if (stream && videoTrackCount > 0) {
+                                console.info('streaming: remote stream has ' + videoTrackCount + ' video track(s) - ready for display');
+                            } else {
+                                console.warn('streaming: remote stream missing video tracks! This will not display.');
+                            }
                             remoteVideo.setStream(stream);
                         },
                         oncleanup: function () {
