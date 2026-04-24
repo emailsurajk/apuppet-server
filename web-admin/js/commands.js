@@ -9,7 +9,7 @@ function Commands(remoteChat, remoteVideo){
         // Keep video auto-rotation disabled, but rotate touch mapping so gestures
         // align with device coordinates when stream metadata carries rotation.
         var androidRotation = ((parseInt(rotation, 10) || 0) % 360 + 360) % 360;
-        var touchRotation = (360 - androidRotation) % 360;
+        var touchRotation = androidRotation;  // Apply same rotation to touch (90° right)
         $('#deviceGestures').attr('data-touch-rotation', touchRotation);
     });
     this.commands.set('pong', function(timestamp){
