@@ -7,7 +7,11 @@ function Commands(remoteChat, remoteVideo){
     this.commands.set('streamingVideoResolution', function(w, h, rotation){
         obj.removeVideo.setResolution(w, h);
         if (rotation !== undefined) {
-            obj.removeVideo.setRotation(rotation);
+            var androidRotation = ((parseInt(rotation, 10) || 0) % 360 + 360) % 360;
+            // Android surface rotation is clockwise; CSS rotation direction for
+            // this stream path needs the inverse to match visual orientation.
+            var cssRotation = (360 - androidRotation) % 360;
+            obj.removeVideo.setRotation(cssRotation);
         }
     });
     this.commands.set('pong', function(timestamp){
