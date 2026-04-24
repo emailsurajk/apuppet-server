@@ -200,10 +200,14 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             if (self.hasActiveVideoTrack()) {
                 return;
             }
+            // Reset so the full retry cycle runs again — the Android side may take
+            // a long time to start streaming (e.g., waiting for MediaProjection
+            // permission on a locked device), so we must keep trying indefinitely.
             self.watchRetryCount = 0;
+            self.watchRestartAttempted = false;
             self.sendWatchRequest();
             self.scheduleWatchRetry();
-        }, 400);
+        }, 3000);
     }
 
     this.refreshWatchIfNeeded = function (reason) {
