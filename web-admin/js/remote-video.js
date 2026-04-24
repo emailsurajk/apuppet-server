@@ -12,10 +12,10 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.watchRetryTimeoutId = null;
     this.watchRetryCount = 0;
     this.watchRestartAttempted = false;
-    this.MAX_WATCH_RETRIES = 20;
-    this.WATCH_RETRY_DELAY_MS = 400;
-    this.PLAY_RETRY_DELAY_MS = 100;
-    this.PLAY_RETRY_COUNT = 15;
+    this.MAX_WATCH_RETRIES = 8;
+    this.WATCH_RETRY_DELAY_MS = 1500;
+    this.PLAY_RETRY_DELAY_MS = 250;
+    this.PLAY_RETRY_COUNT = 8;
     this.rotationDeg = 0;
 
     var obj = this;  // for event handlers
@@ -49,10 +49,28 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.rotationDeg = normalized;
         this.remoteVideoElem.css('transform', 'rotate(' + normalized + 'deg)');
         this.remoteVideoElem.css('transform-origin', 'center center');
-        $('#deviceGestures')
-            .attr('data-rotation', normalized)
-            .css('transform', 'rotate(' + normalized + 'deg)')
-            .css('transform-origin', 'center center');
+        $('#deviceGestures').attr('data-rotation', normalized);
+        this._applyLayout();
+    }
+
+    // Resize #windowStream and reposition the video so the container matches the
+    // visual (post-rotation) dimensions — prevents the black-area gap that appears
+    // when CSS rotate() is used without reflowing the parent.
+    this._applyLayout = function() {
+        var vw = parseInt(this.remoteVideoElem.attr('width') || 0);
+        var vh = parseInt(this.remoteVideoElem.attr('height') || 0);
+        if (!vw || !vh) { return; }
+        var rot = this.rotationDeg;
+        if (rot === 90 || rot === 270) {
+            // Container takes the swapped (landscape) dimensions.
+            // Video is shifted so its centre aligns with the container centre.
+            var shift = (vh - vw) / 2;
+            $('#windowStream').css({ width: vh + 'px', height: vw + 'px', overflow: 'hidden' });
+            this.remoteVideoElem.css({ position: 'absolute', left: shift + 'px', top: -shift + 'px' });
+        } else {
+            $('#windowStream').css({ width: '', height: '', overflow: '' });
+            this.remoteVideoElem.css({ position: '', left: '', top: '' });
+        }
     }
 
     this.rotateClockwise = function(){
@@ -71,6 +89,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         $('#deviceGestures')
             .attr('data-video-width', width)
             .attr('data-video-height', height);
+        this._applyLayout();
     }
 
     this.ensureVideoPlayback = function () {
