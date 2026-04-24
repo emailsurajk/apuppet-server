@@ -40,8 +40,13 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     }
 
     this.setResolution = function(w, h){
-        this.videoResolution = [w, h];
-        this.remoteVideoElem.attr('width', w).attr('height', h);
+        const width = parseInt(w, 10);
+        const height = parseInt(h, 10);
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+            return;
+        }
+        this.videoResolution = [width, height];
+        this.remoteVideoElem.attr('width', width).attr('height', height);
     }
 
     this.ensureVideoPlayback = function () {
@@ -186,7 +191,11 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         if (obj.getStreamVideotracks().length > 0) {
             obj.videoStats.start();
             remoteVideoElem = obj.remoteVideoElem.get(0);
-            obj.setResolution(remoteVideoElem.videoWidth, remoteVideoElem.videoHeight);
+            // Keep the device-reported resolution when available. Falling back to
+            // decoded video dimensions can flip orientation on some browsers/devices.
+            if (!obj.videoResolution || obj.videoResolution.length !== 2) {
+                obj.setResolution(remoteVideoElem.videoWidth, remoteVideoElem.videoHeight);
+            }
             obj.isVideoAlreadyPlayed = true;
         } else {
             obj.videoStats.stop();
