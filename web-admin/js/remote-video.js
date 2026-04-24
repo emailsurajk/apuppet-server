@@ -12,10 +12,10 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.watchRetryTimeoutId = null;
     this.watchRetryCount = 0;
     this.watchRestartAttempted = false;
-    this.MAX_WATCH_RETRIES = 8;
-    this.WATCH_RETRY_DELAY_MS = 1500;
-    this.PLAY_RETRY_DELAY_MS = 250;
-    this.PLAY_RETRY_COUNT = 8;
+    this.MAX_WATCH_RETRIES = 20;
+    this.WATCH_RETRY_DELAY_MS = 400;
+    this.PLAY_RETRY_DELAY_MS = 100;
+    this.PLAY_RETRY_COUNT = 15;
     this.rotationDeg = 0;
 
     var obj = this;  // for event handlers
