@@ -17,14 +17,27 @@ function GestureBuilder(divGesture, remoteChat){
                 ? original.touches[0]
                 : original;
 
-        const rect = this.divGesture.get(0).getBoundingClientRect();
-        let x = point.clientX - rect.left;
-        let y = point.clientY - rect.top;
+        const gestureElem = this.divGesture.get(0);
+        const rect = gestureElem.getBoundingClientRect();
 
-        x = Math.max(0, Math.min(rect.width, x));
-        y = Math.max(0, Math.min(rect.height, y));
+        // Map pointer relative to the actual visible video bounds (post-transform),
+        // not the full gesture container which can include black bars.
+        const videoElem = document.getElementById('streamingRemoteVideo');
+        let activeRect = rect;
+        if (videoElem) {
+            const videoRect = videoElem.getBoundingClientRect();
+            if (videoRect.width > 0 && videoRect.height > 0) {
+                activeRect = videoRect;
+            }
+        }
 
-        const mapped = this.mapDisplayToSource(x, y, rect.width, rect.height);
+        let x = point.clientX - activeRect.left;
+        let y = point.clientY - activeRect.top;
+
+        x = Math.max(0, Math.min(activeRect.width, x));
+        y = Math.max(0, Math.min(activeRect.height, y));
+
+        const mapped = this.mapDisplayToSource(x, y, activeRect.width, activeRect.height);
 
         return [Math.round(mapped[0]), Math.round(mapped[1])];
     }

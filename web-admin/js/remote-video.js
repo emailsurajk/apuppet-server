@@ -95,6 +95,21 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this._applyLayout();
     }
 
+    this.syncGestureSourceFromDecoded = function(videoElem) {
+        if (!videoElem) {
+            return;
+        }
+        const decodedWidth = parseInt(videoElem.videoWidth, 10);
+        const decodedHeight = parseInt(videoElem.videoHeight, 10);
+        if (!Number.isFinite(decodedWidth) || !Number.isFinite(decodedHeight)
+            || decodedWidth <= 0 || decodedHeight <= 0) {
+            return;
+        }
+        $('#deviceGestures')
+            .attr('data-video-width', decodedWidth)
+            .attr('data-video-height', decodedHeight);
+    }
+
     this.ensureVideoPlayback = function () {
         const video = this.remoteVideoElem.get(0);
         if (!video) {
@@ -453,6 +468,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         videoElement.addEventListener('emptied', eventLog('emptied'));
         videoElement.addEventListener('loadedmetadata', function(e) {
             console.info('video: loadedmetadata - ' + videoElement.videoWidth + 'x' + videoElement.videoHeight);
+            obj.syncGestureSourceFromDecoded(videoElement);
         });
         videoElement.addEventListener('loadeddata', eventLog('loadeddata'));
         videoElement.addEventListener('canplay', function(e) {
@@ -481,6 +497,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         videoElement.addEventListener('ratechange', eventLog('ratechange'));
         videoElement.addEventListener('resize', function(e) {
             console.info('video: resize - ' + videoElement.videoWidth + 'x' + videoElement.videoHeight);
+            obj.syncGestureSourceFromDecoded(videoElement);
         });
         videoElement.addEventListener('volumechange', eventLog('volumechange'));
     } else {
