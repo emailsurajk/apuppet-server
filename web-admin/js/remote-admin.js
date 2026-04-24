@@ -238,7 +238,13 @@ $(document).ready(function () {
                                     } else if (result.status === 'started') {
                                         $('#streamingStatus').text("Started").removeClass('d-none');
                                     } else if (result.status === 'stopped') {
-                                        remoteVideo.stopStreaming();
+                                        // Only do a full teardown if the stop was server-initiated.
+                                        // If we sent the stop ourselves (stall detector / restart), skip teardown.
+                                        if (remoteVideo.consumeControlledStop()) {
+                                            console.info('streaming: controlled stop acknowledged by Janus, proceeding with restart');
+                                        } else {
+                                            remoteVideo.stopStreaming();
+                                        }
                                     }
                                 } else if (msg.streaming === 'event') {
                                     // todo: simulcast in place? Is VP9/SVC in place?

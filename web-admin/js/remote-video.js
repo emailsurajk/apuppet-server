@@ -13,6 +13,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.watchRetryCount = 0;
     this.watchRestartAttempted = false;
     this.stallDetectorId = null;
+    this.controlledStopInProgress = false;
     this.MAX_WATCH_RETRIES = 8;
     this.WATCH_RETRY_DELAY_MS = 1500;
     this.PLAY_RETRY_DELAY_MS = 250;
@@ -210,6 +211,22 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         }
     }
 
+    // Send a "stop" to Janus without triggering the full stopStreaming() teardown.
+    // Sets controlledStopInProgress=true so onmessage can distinguish this from
+    // a server-initiated stop.
+    this.sendControlledStop = function () {
+        if (!this.streaming) return;
+        this.controlledStopInProgress = true;
+        console.info('streaming: sending controlled stop (restart in progress)');
+        this.streaming.send({"message": {"request": "stop"}});
+    }
+
+    this.consumeControlledStop = function () {
+        var was = this.controlledStopInProgress;
+        this.controlledStopInProgress = false;
+        return was;
+    }
+
     this.startStallDetector = function () {
         this.cancelStallDetector();
         var self = this;
@@ -231,10 +248,8 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             if (pollCount >= STALL_TIMEOUT_POLLS) {
                 console.warn('video: stall detector - no data after ' + (STALL_TIMEOUT_POLLS * 3) + 's, resubscribing');
                 self.cancelStallDetector();
-                // Send stop then re-watch to force Janus to renegotiate
-                if (self.streaming) {
-                    self.streaming.send({"message": {"request": "stop"}});
-                }
+                // Send controlled stop then re-watch to force Janus to renegotiate
+                self.sendControlledStop();
                 setTimeout(function () {
                     self.watchRetryCount = 0;
                     self.watchRestartAttempted = false;
@@ -304,7 +319,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.watchRestartAttempted = true;
 
         console.warn("streaming: retries exhausted, forcing stop/watch restart after 3s pause");
-        this.streaming.send({"message": {"request": "stop"}});
+        this.sendControlledStop();
 
         var self = this;
         setTimeout(function () {
