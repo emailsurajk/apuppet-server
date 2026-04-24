@@ -144,18 +144,19 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         if (this.getStreamVideotracks().length > 0) {
             console.info('streaming: setStream proceeding - stream has ' + this.getStreamVideotracks().length + ' video track(s)');
             var videoElem = this.remoteVideoElem.get(0);
-            console.debug('video element: tag=' + (videoElem ? videoElem.tagName : 'NULL') + ', width=' + (videoElem ? videoElem.width : 'NULL') + ', height=' + (videoElem ? videoElem.height : 'NULL'));
-            console.debug('video element visibility: display=' + (videoElem ? window.getComputedStyle(videoElem).display : '?') + ', visibility=' + (videoElem ? window.getComputedStyle(videoElem).visibility : '?'));
-            console.debug('#windowStream: display=' + (document.getElementById('windowStream') ? window.getComputedStyle(document.getElementById('windowStream')).display : 'NOT_FOUND'));
+            console.info('video element state: tag=' + (videoElem ? videoElem.tagName : 'NULL') + ', id=' + (videoElem ? videoElem.id : 'NULL'));
+            console.info('video element dims: width=' + (videoElem ? videoElem.width : '?') + ', height=' + (videoElem ? videoElem.height : '?') + ', videoWidth=' + (videoElem ? videoElem.videoWidth : '?') + ', videoHeight=' + (videoElem ? videoElem.videoHeight : '?'));
+            console.info('video element CSS: display=' + (videoElem ? window.getComputedStyle(videoElem).display : '?') + ', visibility=' + (videoElem ? window.getComputedStyle(videoElem).visibility : '?') + ', opacity=' + (videoElem ? window.getComputedStyle(videoElem).opacity : '?'));
+            console.info('#windowStream CSS: display=' + (document.getElementById('windowStream') ? window.getComputedStyle(document.getElementById('windowStream')).display : 'NOT_FOUND'));
             
             this.cancelWatchRetry();
             if (streamChanged) {
                 console.info('streaming: stream changed, attaching to video element');
                 Janus.attachMediaStream(videoElem, this.stream);
-                console.debug('video element after attachMediaStream: srcObject=' + (videoElem.srcObject ? 'SET' : 'NULL'));
+                console.info('video element after attachMediaStream: srcObject=' + (videoElem.srcObject ? 'SET' : 'NULL') + ', tracks=' + (videoElem.srcObject ? videoElem.srcObject.getTracks().length : 0));
                 this.ensureVideoPlayback();
             } else {
-                console.debug('streaming: stream unchanged, skipping reattach');
+                console.info('streaming: stream unchanged, skipping reattach');
             }
             this.hasRemoteVideo();
             if (['chrome', 'firefox', 'safari'].indexOf(Janus.webRTCAdapter.browserDetails.browser) >= 0) {
