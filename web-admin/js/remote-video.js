@@ -161,12 +161,6 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
                 console.info('video track[' + i + ']: enabled=' + t.enabled + ', muted=' + t.muted + ', readyState=' + t.readyState + ', label=' + t.label);
                 if (t.muted) {
                     console.warn('video track[' + i + '] is MUTED (no RTP data yet) - video will appear when Android starts streaming');
-                    // Listen for unmute to re-trigger playback once data arrives
-                    var self = this;
-                    t.addEventListener('unmute', function() {
-                        console.info('video track: UNMUTED - RTP data is now flowing, ensuring playback');
-                        self.ensureVideoPlayback();
-                    });
                 }
             }
 
@@ -231,21 +225,42 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.cancelStallDetector();
         var self = this;
         var pollCount = 0;
-        var STALL_TIMEOUT_POLLS = 10;  // 10 x 3s = 30s before resubscribing
+        var STALL_TIMEOUT_POLLS = 20;  // 20 x 3s = 60s - H.264 decoder may take time to start
         this.stallDetectorId = setInterval(function () {
             var v = self.remoteVideoElem.get(0);
             if (!v || !v.srcObject) {
                 self.cancelStallDetector();
                 return;
             }
+            
+            // Check if we have actual decoded frames
             if (v.readyState > 0 || v.videoWidth > 0) {
-                console.info('video: stall detector - data is flowing (readyState=' + v.readyState + ', videoWidth=' + v.videoWidth + '), stopping detector');
+                console.info('video: stall detector - decoder started (readyState=' + v.readyState + ', videoWidth=' + v.videoWidth + '), stopping detector');
                 self.cancelStallDetector();
                 return;
             }
+            
+            // Check if RTP data is flowing (track enabled and unmuted)
+            var tracks = self.getStreamVideotracks();
+            var hasRtpData = false;
+            for (var i = 0; i < tracks.length; i++) {
+                if (tracks[i].enabled && !tracks[i].muted) {
+                    hasRtpData = true;
+                    break;
+                }
+            }
+            
             pollCount++;
-            console.warn('video: stall detector poll ' + pollCount + '/' + STALL_TIMEOUT_POLLS + ' - readyState=' + v.readyState + ', videoWidth=' + v.videoWidth + ', paused=' + v.paused);
+            var status = hasRtpData ? 'RTP flowing, awaiting decoder' : 'no RTP, no decoder';
+            console.warn('video: stall detector poll ' + pollCount + '/' + STALL_TIMEOUT_POLLS + ' - readyState=' + v.readyState + ', videoWidth=' + v.videoWidth + ', ' + status);
+            
             if (pollCount >= STALL_TIMEOUT_POLLS) {
+                // If RTP is flowing, let it wait more. Only give up if RTP stopped.
+                if (hasRtpData) {
+                    console.warn('video: stall detector - RTP still flowing after ' + (STALL_TIMEOUT_POLLS * 3) + 's, extending timeout (decoder may be slow)');
+                    pollCount = 0;  // reset counter and keep waiting
+                    return;
+                }
                 console.warn('video: stall detector - no data after ' + (STALL_TIMEOUT_POLLS * 3) + 's, resubscribing');
                 self.cancelStallDetector();
                 // Send controlled stop then re-watch to force Janus to renegotiate
