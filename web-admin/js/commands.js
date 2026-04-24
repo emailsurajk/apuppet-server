@@ -4,8 +4,11 @@ function Commands(remoteChat, remoteVideo){
     this.commands = new Map();
     var obj = this;
 
-    this.commands.set('streamingVideoResolution', function(w, h){
+    this.commands.set('streamingVideoResolution', function(w, h, rotation){
         obj.removeVideo.setResolution(w, h);
+        if (rotation !== undefined) {
+            obj.removeVideo.setRotation(rotation);
+        }
     });
     this.commands.set('pong', function(timestamp){
         ui.emit('SessionMonitoring.onPong', timestamp);
