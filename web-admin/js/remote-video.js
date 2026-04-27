@@ -146,7 +146,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
                 right: 'auto',
                 bottom: 'auto',
                 outline: '2px dashed rgba(255, 0, 0, 0.85)',
-                backgroundColor: 'rgba(255, 0, 0, 0.08)'
+                backgroundColor: 'rgba(0, 0, 0, 0)'
             });
             console.info('touch-map: overlay layout',
                 'left=' + Math.round(overlayLeft),
