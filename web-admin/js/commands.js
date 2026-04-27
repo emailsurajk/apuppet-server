@@ -11,6 +11,10 @@ function Commands(remoteChat, remoteVideo){
         var androidRotation = ((parseInt(rotation, 10) || 0) % 360 + 360) % 360;
         var touchRotation = (360 - androidRotation) % 360;
         $('#deviceGestures').attr('data-touch-rotation', touchRotation);
+        console.info('touch-map: resolution metadata',
+            'source=' + w + 'x' + h,
+            'androidRotation=' + androidRotation,
+            'touchRotation=' + touchRotation);
     });
     this.commands.set('pong', function(timestamp){
         ui.emit('SessionMonitoring.onPong', timestamp);

@@ -6,6 +6,7 @@ function GestureBuilder(divGesture, remoteChat){
     this.swipeStartMillis = 0;
     this.swipeInProcess = false;
     this.activePointerId = null;
+    this.lastMapLogMillis = 0;
 
     let obj = this;  // for event handlers
 
@@ -38,6 +39,17 @@ function GestureBuilder(divGesture, remoteChat){
         y = Math.max(0, Math.min(activeRect.height, y));
 
         const mapped = this.mapDisplayToSource(x, y, activeRect.width, activeRect.height);
+        const now = Date.now();
+        if (now - this.lastMapLogMillis > 250) {
+            this.lastMapLogMillis = now;
+            console.info('touch-map: pointer',
+                'client=' + Math.round(point.clientX) + ',' + Math.round(point.clientY),
+                'local=' + Math.round(x) + ',' + Math.round(y),
+                'activeRect=' + Math.round(activeRect.left) + ',' + Math.round(activeRect.top) + ' ' + Math.round(activeRect.width) + 'x' + Math.round(activeRect.height),
+                'rotation=' + this.getRotation(),
+                'source=' + this.getSourceSize(activeRect.width, activeRect.height).join('x'),
+                'mapped=' + Math.round(mapped[0]) + ',' + Math.round(mapped[1]));
+        }
 
         return [Math.round(mapped[0]), Math.round(mapped[1])];
     }
@@ -74,12 +86,18 @@ function GestureBuilder(divGesture, remoteChat){
             contentHeight = videoRect.width / contentAspect;
         }
 
-        return {
+        const activeRect = {
             left: videoRect.left + (videoRect.width - contentWidth) / 2,
             top: videoRect.top + (videoRect.height - contentHeight) / 2,
             width: contentWidth,
             height: contentHeight
         };
+        console.debug('touch-map: content rect',
+            'videoRect=' + Math.round(videoRect.left) + ',' + Math.round(videoRect.top) + ' ' + Math.round(videoRect.width) + 'x' + Math.round(videoRect.height),
+            'activeRect=' + Math.round(activeRect.left) + ',' + Math.round(activeRect.top) + ' ' + Math.round(activeRect.width) + 'x' + Math.round(activeRect.height),
+            'rotation=' + rotation,
+            'source=' + sourceWidth + 'x' + sourceHeight);
+        return activeRect;
     }
 
     this.getSourceSize = function(displayWidth, displayHeight){
@@ -143,6 +161,7 @@ function GestureBuilder(divGesture, remoteChat){
             } else {
                 swipeDataToSend = `swipe,${this.swipeStartPosition[0]},${this.swipeStartPosition[1]},${swipeEndPosition[0]},${swipeEndPosition[1]},${swipeDuration}`;
             }
+            console.info('touch-map: sending gesture', swipeDataToSend);
             this.remoteChat.sendData(swipeDataToSend);
             this.swipeInProcess = false;
         }
