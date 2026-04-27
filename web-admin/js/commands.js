@@ -10,7 +10,7 @@ function Commands(remoteChat, remoteVideo){
         // align with device coordinates when stream metadata carries rotation.
         var androidRotation = ((parseInt(rotation, 10) || 0) % 360 + 360) % 360;
         var touchRotation = (360 - androidRotation) % 360;
-        $('#deviceGestures').attr('data-touch-rotation', touchRotation);
+        obj.removeVideo.setTouchRotation(touchRotation);
         console.info('touch-map: resolution metadata',
             'source=' + w + 'x' + h,
             'androidRotation=' + androidRotation,

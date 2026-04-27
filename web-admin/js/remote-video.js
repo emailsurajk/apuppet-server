@@ -19,6 +19,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.PLAY_RETRY_DELAY_MS = 250;
     this.PLAY_RETRY_COUNT = 8;
     this.rotationDeg = 0;
+    this.touchRotationDeg = 0;
 
     var obj = this;  // for event handlers
 
@@ -52,9 +53,16 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.remoteVideoElem.css('transform', 'rotate(' + normalized + 'deg)');
         this.remoteVideoElem.css('transform-origin', 'center center');
         $('#deviceGestures').attr('data-rotation', normalized);
-        $('#deviceGestures').attr('data-touch-rotation', normalized);
+        this.setTouchRotation(normalized);
         $('#btnRotateVideo').text('Rotate View (' + normalized + '°)');
         this._applyLayout();
+    }
+
+    this.setTouchRotation = function(deg){
+        var normalized = ((parseInt(deg, 10) || 0) % 360 + 360) % 360;
+        this.touchRotationDeg = normalized;
+        $('#deviceGestures').attr('data-touch-rotation', normalized);
+        this._applyGestureOverlayLayout();
     }
 
     // Resize #windowStream and reposition the video so the container matches the
@@ -74,6 +82,67 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         } else {
             $('#windowStream').css({ width: '', height: '', overflow: '' });
             this.remoteVideoElem.css({ position: '', left: '', top: '' });
+        }
+        this._applyGestureOverlayLayout();
+    }
+
+    this._applyGestureOverlayLayout = function() {
+        var gestureElem = $('#deviceGestures');
+        var vw = parseFloat(this.remoteVideoElem.attr('width') || this.remoteVideoElem.width() || 0);
+        var vh = parseFloat(this.remoteVideoElem.attr('height') || this.remoteVideoElem.height() || 0);
+        var sourceWidth = this.videoResolution ? this.videoResolution[0] : vw;
+        var sourceHeight = this.videoResolution ? this.videoResolution[1] : vh;
+        var touchRotation = this.touchRotationDeg;
+
+        if (!vw || !vh || !sourceWidth || !sourceHeight) {
+            return;
+        }
+
+        if (touchRotation === 90 || touchRotation === 270) {
+            var contentAspect = sourceHeight / sourceWidth;
+            var videoAspect = vw / vh;
+            var contentWidth = vw;
+            var contentHeight = vh;
+
+            if (videoAspect > contentAspect) {
+                contentWidth = vh * contentAspect;
+            } else {
+                contentHeight = vw / contentAspect;
+            }
+
+            var left = (vw - contentWidth) / 2;
+            var top = (vh - contentHeight) / 2;
+            gestureElem.css({
+                left: left + 'px',
+                top: top + 'px',
+                width: contentWidth + 'px',
+                height: contentHeight + 'px',
+                right: 'auto',
+                bottom: 'auto'
+            });
+            console.info('touch-map: overlay layout',
+                'left=' + Math.round(left),
+                'top=' + Math.round(top),
+                'size=' + Math.round(contentWidth) + 'x' + Math.round(contentHeight),
+                'touchRotation=' + touchRotation,
+                'video=' + Math.round(vw) + 'x' + Math.round(vh),
+                'source=' + sourceWidth + 'x' + sourceHeight);
+        } else {
+            gestureElem.css({
+                left: '0',
+                top: '0',
+                width: '100%',
+                height: '100%',
+                right: '0',
+                bottom: '0'
+            });
+            console.info('touch-map: overlay layout',
+                'left=0',
+                'top=0',
+                'size=100%',
+                'touchRotation=' + touchRotation,
+                'video=' + Math.round(vw) + 'x' + Math.round(vh),
+                'source=' + sourceWidth + 'x' + sourceHeight);
         }
     }
 
@@ -109,6 +178,8 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         $('#deviceGestures')
             .attr('data-video-width', decodedWidth)
             .attr('data-video-height', decodedHeight);
+        this.videoResolution = [decodedWidth, decodedHeight];
+        this._applyGestureOverlayLayout();
     }
 
     this.ensureVideoPlayback = function () {
