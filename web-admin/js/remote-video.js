@@ -20,6 +20,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.PLAY_RETRY_COUNT = 8;
     this.rotationDeg = 0;
     this.touchRotationDeg = 0;
+    this.baseTouchRotationDeg = 0;
 
     var obj = this;  // for event handlers
 
@@ -53,15 +54,13 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this.remoteVideoElem.css('transform', 'rotate(' + normalized + 'deg)');
         this.remoteVideoElem.css('transform-origin', 'center center');
         $('#deviceGestures').attr('data-rotation', normalized);
-        this.setTouchRotation(normalized);
         $('#btnRotateVideo').text('Rotate View (' + normalized + '°)');
         this._applyLayout();
     }
 
     this.setTouchRotation = function(deg){
         var normalized = ((parseInt(deg, 10) || 0) % 360 + 360) % 360;
-        this.touchRotationDeg = normalized;
-        $('#deviceGestures').attr('data-touch-rotation', normalized);
+        this.baseTouchRotationDeg = normalized;
         this._applyGestureOverlayLayout();
     }
 
@@ -92,13 +91,15 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         var vh = parseFloat(this.remoteVideoElem.attr('height') || this.remoteVideoElem.height() || 0);
         var sourceWidth = this.videoResolution ? this.videoResolution[0] : vw;
         var sourceHeight = this.videoResolution ? this.videoResolution[1] : vh;
-        var touchRotation = this.touchRotationDeg;
+        var touchRotation = (this.baseTouchRotationDeg + this.rotationDeg) % 360;
+        this.touchRotationDeg = touchRotation;
+        $('#deviceGestures').attr('data-touch-rotation', touchRotation);
 
         if (!vw || !vh || !sourceWidth || !sourceHeight) {
             return;
         }
 
-        if (touchRotation === 90 || touchRotation === 270) {
+        if (this.baseTouchRotationDeg === 90 || this.baseTouchRotationDeg === 270) {
             var contentAspect = sourceHeight / sourceWidth;
             var videoAspect = vw / vh;
             var contentWidth = vw;
@@ -112,22 +113,50 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
 
             var left = (vw - contentWidth) / 2;
             var top = (vh - contentHeight) / 2;
+            var overlayLeft = left;
+            var overlayTop = top;
+            var overlayWidth = contentWidth;
+            var overlayHeight = contentHeight;
+            var visualWidth = vw;
+            var visualHeight = vh;
+
+            if (this.rotationDeg === 90 || this.rotationDeg === 270) {
+                visualWidth = vh;
+                visualHeight = vw;
+                overlayWidth = contentHeight;
+                overlayHeight = contentWidth;
+
+                if (this.rotationDeg === 90) {
+                    overlayLeft = vh - top - contentHeight;
+                    overlayTop = left;
+                } else {
+                    overlayLeft = top;
+                    overlayTop = vw - left - contentWidth;
+                }
+            } else if (this.rotationDeg === 180) {
+                overlayLeft = vw - left - contentWidth;
+                overlayTop = vh - top - contentHeight;
+            }
+
             gestureElem.css({
-                left: left + 'px',
-                top: top + 'px',
-                width: contentWidth + 'px',
-                height: contentHeight + 'px',
+                left: overlayLeft + 'px',
+                top: overlayTop + 'px',
+                width: overlayWidth + 'px',
+                height: overlayHeight + 'px',
                 right: 'auto',
                 bottom: 'auto',
                 outline: '2px dashed rgba(255, 0, 0, 0.85)',
                 backgroundColor: 'rgba(255, 0, 0, 0.08)'
             });
             console.info('touch-map: overlay layout',
-                'left=' + Math.round(left),
-                'top=' + Math.round(top),
-                'size=' + Math.round(contentWidth) + 'x' + Math.round(contentHeight),
+                'left=' + Math.round(overlayLeft),
+                'top=' + Math.round(overlayTop),
+                'size=' + Math.round(overlayWidth) + 'x' + Math.round(overlayHeight),
+                'baseTouchRotation=' + this.baseTouchRotationDeg,
                 'touchRotation=' + touchRotation,
+                'viewRotation=' + this.rotationDeg,
                 'video=' + Math.round(vw) + 'x' + Math.round(vh),
+                'visual=' + Math.round(visualWidth) + 'x' + Math.round(visualHeight),
                 'source=' + sourceWidth + 'x' + sourceHeight);
         } else {
             gestureElem.css({
@@ -144,7 +173,9 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
                 'left=0',
                 'top=0',
                 'size=100%',
+                'baseTouchRotation=' + this.baseTouchRotationDeg,
                 'touchRotation=' + touchRotation,
+                'viewRotation=' + this.rotationDeg,
                 'video=' + Math.round(vw) + 'x' + Math.round(vh),
                 'source=' + sourceWidth + 'x' + sourceHeight);
         }
