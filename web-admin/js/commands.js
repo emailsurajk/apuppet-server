@@ -6,10 +6,10 @@ function Commands(remoteChat, remoteVideo){
 
     this.commands.set('streamingVideoResolution', function(w, h, rotation){
         obj.removeVideo.setResolution(w, h);
-        // Keep video auto-rotation disabled, but rotate touch mapping so gestures
-        // align with device coordinates when stream metadata carries rotation.
+        // Keep video auto-rotation disabled, but preserve the source rotation so
+        // gesture mapping uses the same orientation metadata the overlay uses.
         var androidRotation = ((parseInt(rotation, 10) || 0) % 360 + 360) % 360;
-        var touchRotation = (360 - androidRotation) % 360;
+        var touchRotation = androidRotation;
         obj.removeVideo.setTouchRotation(touchRotation);
         console.info('touch-map: resolution metadata',
             'source=' + w + 'x' + h,
