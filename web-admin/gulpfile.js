@@ -23,7 +23,7 @@ gulp.task('styles', async function(){
     return gulp.src([
         'css/main.css',
         'css/loader.css',
-    ])
+    ], {allowEmpty: true})
         .pipe(concat('app.min.css'))
         .pipe(cleanCSS({
             keepBreaks: true
@@ -40,7 +40,7 @@ gulp.task('deps-styles', async function(){
         'css/lib/bootstrap-4.3.1.min.css',
         'css/lib/font-awesome-4.6.2.min.css',
         'css/lib/toastr.min.css'
-    ])
+    ], {allowEmpty: true})
         .pipe(concat('deps.min.css'))
         .pipe(cleanCSS({
             keepBreaks: true
@@ -66,7 +66,7 @@ gulp.task('scripts', async function(){
         'js/video-stats.js',
         'js/gesture-builder.js',
         'js/remote-admin.js'
-    ])
+    ], {allowEmpty: true})
         .pipe(concat('app.min.js'))
         .pipe(terser())
         .pipe(size)
@@ -84,7 +84,7 @@ gulp.task('deps-scripts', async function() {
         'js/lib/popper-2.5.3.min.js',
         'js/lib/bootbox-5.4.0.min.js',
         'js/lib/toastr.min.js'
-    ])
+    ], {allowEmpty: true})
         .pipe(concat('deps.min.js'))
         .pipe(terser())
         .pipe(size)
