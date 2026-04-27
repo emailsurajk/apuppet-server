@@ -20,14 +20,14 @@ function GestureBuilder(divGesture, remoteChat){
         const gestureElem = this.divGesture.get(0);
         const rect = gestureElem.getBoundingClientRect();
 
-        // Map pointer relative to the actual visible video bounds (post-transform),
-        // not the full gesture container which can include black bars.
+        // Map pointer relative to the actual visible Android content, not the
+        // full video element which can include black letterbox bars.
         const videoElem = document.getElementById('streamingRemoteVideo');
         let activeRect = rect;
         if (videoElem) {
             const videoRect = videoElem.getBoundingClientRect();
             if (videoRect.width > 0 && videoRect.height > 0) {
-                activeRect = videoRect;
+                activeRect = this.getActiveContentRect(videoRect);
             }
         }
 
@@ -49,6 +49,37 @@ function GestureBuilder(divGesture, remoteChat){
         }
         rotation = ((rotation % 360) + 360) % 360;
         return rotation;
+    }
+
+    this.getActiveContentRect = function(videoRect){
+        const rotation = this.getRotation();
+        const sourceSize = this.getSourceSize(videoRect.width, videoRect.height);
+        const sourceWidth = sourceSize[0];
+        const sourceHeight = sourceSize[1];
+
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+            return videoRect;
+        }
+
+        const contentAspect = (rotation === 90 || rotation === 270)
+            ? sourceHeight / sourceWidth
+            : sourceWidth / sourceHeight;
+        const videoAspect = videoRect.width / videoRect.height;
+
+        let contentWidth = videoRect.width;
+        let contentHeight = videoRect.height;
+        if (videoAspect > contentAspect) {
+            contentWidth = videoRect.height * contentAspect;
+        } else {
+            contentHeight = videoRect.width / contentAspect;
+        }
+
+        return {
+            left: videoRect.left + (videoRect.width - contentWidth) / 2,
+            top: videoRect.top + (videoRect.height - contentHeight) / 2,
+            width: contentWidth,
+            height: contentHeight
+        };
     }
 
     this.getSourceSize = function(displayWidth, displayHeight){
