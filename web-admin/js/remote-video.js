@@ -269,7 +269,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             
             pollCount++;
             var status = hasRtpData ? 'RTP flowing, awaiting decoder' : 'no RTP, no decoder';
-            console.warn('video: stall detector poll ' + pollCount + '/' + STALL_TIMEOUT_POLLS + ' - readyState=' + v.readyState + ', videoWidth=' + v.videoWidth + ', ' + status);
+            console.debug('video: stall detector poll ' + pollCount + '/' + STALL_TIMEOUT_POLLS + ' - readyState=' + v.readyState + ', videoWidth=' + v.videoWidth + ', ' + status);
             
             // After 10 seconds (poll 4), notify user that H.264 decoder is initializing
             if (hasRtpData && pollCount === 4) {
