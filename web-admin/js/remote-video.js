@@ -118,7 +118,9 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
                 width: contentWidth + 'px',
                 height: contentHeight + 'px',
                 right: 'auto',
-                bottom: 'auto'
+                bottom: 'auto',
+                outline: '2px dashed rgba(255, 0, 0, 0.85)',
+                backgroundColor: 'rgba(255, 0, 0, 0.08)'
             });
             console.info('touch-map: overlay layout',
                 'left=' + Math.round(left),
@@ -134,7 +136,9 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
                 width: '100%',
                 height: '100%',
                 right: '0',
-                bottom: '0'
+                bottom: '0',
+                outline: '',
+                backgroundColor: 'rgba(0, 0, 0, 0)'
             });
             console.info('touch-map: overlay layout',
                 'left=0',
