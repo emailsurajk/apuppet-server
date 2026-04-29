@@ -21,6 +21,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.rotationDeg = 0;
     this.touchRotationDeg = 0;
     this.baseTouchRotationDeg = 0;
+    this._currentScale = 1;
 
     var obj = this;  // for event handlers
 
@@ -85,12 +86,14 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             var scaledVW = Math.round(vw * scale);
             var scaledVH = Math.round(vh * scale);
             var shift = (scaledVH - scaledVW) / 2;
+            this._currentScale = scale;
             $('#windowStream').css({ width: scaledVH + 'px', height: scaledVW + 'px', overflow: 'hidden' });
             this.remoteVideoElem.css({
                 position: 'absolute', left: shift + 'px', top: -shift + 'px',
                 width: scaledVW + 'px', height: scaledVH + 'px'
             });
         } else {
+            this._currentScale = 1;
             $('#windowStream').css({ width: '', height: '', overflow: '' });
             this.remoteVideoElem.css({ position: '', left: '', top: '', width: '', height: '' });
         }
@@ -150,11 +153,12 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
                 overlayTop = vh - top - contentHeight;
             }
 
+            var s = this._currentScale || 1;
             gestureElem.css({
-                left: overlayLeft + 'px',
-                top: overlayTop + 'px',
-                width: overlayWidth + 'px',
-                height: overlayHeight + 'px',
+                left: (overlayLeft * s) + 'px',
+                top: (overlayTop * s) + 'px',
+                width: (overlayWidth * s) + 'px',
+                height: (overlayHeight * s) + 'px',
                 right: 'auto',
                 bottom: 'auto',
                 outline: '2px dashed rgba(255, 0, 0, 0.85)',
