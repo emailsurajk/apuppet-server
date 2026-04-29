@@ -129,6 +129,7 @@ function initializeApp() {
 
                         error: function (error) {
                             console.error("textroom: error attaching plugin: ", error);
+                            ui.initAbort();
                             bootbox.alert("Ошибка подключения к сессии: " + error);
                         },
 
@@ -220,6 +221,7 @@ function initializeApp() {
 
                         error: function (error) {
                             console.error("streaming: error attaching plugin", error);
+                            ui.initAbort();
                             ui.showError(`'Streaming error: ${error}`, 'streaming_error');
                         },
 

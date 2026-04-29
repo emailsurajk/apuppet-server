@@ -1,6 +1,6 @@
 var AuthManager = (function () {
-    var TOKEN_KEY = 'apuppet_access_token';
-    var EXPIRES_KEY = 'apuppet_expires_in';
+    var TOKEN_KEY = 'access_token';
+    var EXPIRES_KEY = 'expires_in';
     var LOGIN_API_URL = 'https://api.vivvi.net/api/v1/user/login';
 
     function getStoredToken() {
@@ -37,6 +37,7 @@ var AuthManager = (function () {
     }
 
     function showAuthForm() {
+        loader.hide();
         $('#auth-form-wrapper').removeClass('d-none');
         $('#login-form').addClass('d-none');
     }
