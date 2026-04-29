@@ -67,20 +67,32 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     // Resize #windowStream and reposition the video so the container matches the
     // visual (post-rotation) dimensions — prevents the black-area gap that appears
     // when CSS rotate() is used without reflowing the parent.
+    // When the rotated width (vh) exceeds the available container width the video
+    // is scaled down uniformly so nothing gets cropped.
     this._applyLayout = function() {
         var vw = parseInt(this.remoteVideoElem.attr('width') || 0);
         var vh = parseInt(this.remoteVideoElem.attr('height') || 0);
         if (!vw || !vh) { return; }
         var rot = this.rotationDeg;
         if (rot === 90 || rot === 270) {
-            // Container takes the swapped (landscape) dimensions.
-            // Video is shifted so its centre aligns with the container centre.
-            var shift = (vh - vw) / 2;
-            $('#windowStream').css({ width: vh + 'px', height: vw + 'px', overflow: 'hidden' });
-            this.remoteVideoElem.css({ position: 'absolute', left: shift + 'px', top: -shift + 'px' });
+            // After rotation the visual width = vh (the portrait height).
+            // Scale down if that exceeds the available container width so the
+            // full frame is visible without horizontal overflow / cropping.
+            var mainWindow = document.getElementById('main-window');
+            var availWidth = (mainWindow && mainWindow.clientWidth > 0)
+                ? mainWindow.clientWidth : vh;
+            var scale = Math.min(1, availWidth / vh);
+            var scaledVW = Math.round(vw * scale);
+            var scaledVH = Math.round(vh * scale);
+            var shift = (scaledVH - scaledVW) / 2;
+            $('#windowStream').css({ width: scaledVH + 'px', height: scaledVW + 'px', overflow: 'hidden' });
+            this.remoteVideoElem.css({
+                position: 'absolute', left: shift + 'px', top: -shift + 'px',
+                width: scaledVW + 'px', height: scaledVH + 'px'
+            });
         } else {
             $('#windowStream').css({ width: '', height: '', overflow: '' });
-            this.remoteVideoElem.css({ position: '', left: '', top: '' });
+            this.remoteVideoElem.css({ position: '', left: '', top: '', width: '', height: '' });
         }
         this._applyGestureOverlayLayout();
     }
