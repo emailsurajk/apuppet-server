@@ -58,6 +58,20 @@ span.link {
 	text-decoration: underline;
 }
 
+/* Auth login form */
+#auth-form-wrapper .title-start {
+	margin-top: 50px;
+	margin-bottom: 30px;
+}
+
+#auth-error {
+	font-size: 16px;
+}
+
+#auth-submit:disabled {
+	opacity: 0.7;
+}
+
 span.link:hover {
 	text-decoration: none;
 }

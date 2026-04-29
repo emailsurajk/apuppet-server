@@ -1,4 +1,4 @@
-$(document).ready(function () {
+function initializeApp() {
     var ui = new UI();
     window['ui'] = ui;
 
@@ -391,4 +391,4 @@ $(document).ready(function () {
     $('#debugClose').on('click', function(e){
         window.debugUtils.disable();
     });
-});
+}

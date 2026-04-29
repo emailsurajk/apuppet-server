@@ -65,7 +65,8 @@ gulp.task('scripts', async function(){
         'js/remote-video.js',
         'js/video-stats.js',
         'js/gesture-builder.js',
-        'js/remote-admin.js'
+        'js/remote-admin.js',
+        'js/auth.js'
     ], {allowEmpty: true})
         .pipe(concat('app.min.js'))
         .pipe(terser())

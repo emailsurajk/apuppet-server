@@ -16,8 +16,46 @@
 
     <div id="pageLoader" class="loader loader-default is-active" data-text="Loading .."></div>
 
-    <!-- Login form -->
-    <form id="login-form">
+    <!-- Auth Login Form -->
+    <div id="auth-form-wrapper">
+        <form id="auth-form" autocomplete="on">
+            <div class="container" id="auth-form-container">
+                <div class="row justify-content-center">
+                    <div class="col-md-6 text-center">
+                        <h1 class="title-start">aPuppet - Sign In</h1>
+                    </div>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-md-6 text-center">
+                        <p>Sign in to your account to continue</p>
+                    </div>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div id="auth-error" class="alert alert-danger d-none" role="alert"></div>
+                        <div class="form-group">
+                            <label for="auth-email">Email</label>
+                            <input type="email" class="form-control input-start" id="auth-email"
+                                   placeholder="your@email.com" autocomplete="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="auth-password">Password</label>
+                            <input type="password" class="form-control input-start" id="auth-password"
+                                   placeholder="Password" autocomplete="current-password" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-md-6 text-center">
+                        <button type="submit" id="auth-submit" class="btn btn-primary btn-start">Sign In</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Device Session Login Form -->
+    <form id="login-form" class="d-none">
 
         <div class="container" id="login-form-container">
             <div class="row justify-content-center">
