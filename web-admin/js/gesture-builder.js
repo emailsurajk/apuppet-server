@@ -64,6 +64,7 @@ function GestureBuilder(divGesture, remoteChat){
     }
 
     this.getActiveContentRect = function(videoRect){
+        const rotation = this.getRotation();
         const sourceSize = this.getSourceSize(videoRect.width, videoRect.height);
         const sourceWidth = sourceSize[0];
         const sourceHeight = sourceSize[1];
@@ -72,9 +73,9 @@ function GestureBuilder(divGesture, remoteChat){
             return videoRect;
         }
 
-        // The visible video frame aspect ratio is independent from the touch
-        // rotation metadata. Rotation is applied later in mapDisplayToSource().
-        const contentAspect = sourceWidth / sourceHeight;
+        const contentAspect = (rotation === 90 || rotation === 270)
+            ? sourceHeight / sourceWidth
+            : sourceWidth / sourceHeight;
         const videoAspect = videoRect.width / videoRect.height;
 
         let contentWidth = videoRect.width;
@@ -94,7 +95,7 @@ function GestureBuilder(divGesture, remoteChat){
         console.debug('touch-map: content rect',
             'videoRect=' + Math.round(videoRect.left) + ',' + Math.round(videoRect.top) + ' ' + Math.round(videoRect.width) + 'x' + Math.round(videoRect.height),
             'activeRect=' + Math.round(activeRect.left) + ',' + Math.round(activeRect.top) + ' ' + Math.round(activeRect.width) + 'x' + Math.round(activeRect.height),
-            'rotation=' + this.getRotation(),
+            'rotation=' + rotation,
             'source=' + sourceWidth + 'x' + sourceHeight);
         return activeRect;
     }
