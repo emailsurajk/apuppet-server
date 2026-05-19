@@ -14,11 +14,10 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.watchRestartAttempted = false;
     this.stallDetectorId = null;
     this.controlledStopInProgress = false;
-    this.MAX_WATCH_RETRIES = 12;
-    this.WATCH_RETRY_DELAY_MS = 450;
-    this.PLAY_RETRY_DELAY_MS = 100;
-    this.PLAY_RETRY_COUNT = 20;
-    this.INITIAL_WATCH_BURST_MS = [120, 300, 700];
+    this.MAX_WATCH_RETRIES = 8;
+    this.WATCH_RETRY_DELAY_MS = 1500;
+    this.PLAY_RETRY_DELAY_MS = 250;
+    this.PLAY_RETRY_COUNT = 8;
     this.rotationDeg = 0;
     this.touchRotationDeg = 0;
     this.baseTouchRotationDeg = 0;
@@ -467,18 +466,6 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         }, this.WATCH_RETRY_DELAY_MS);
     }
 
-    this.sendInitialWatchBurst = function () {
-        var self = this;
-        this.INITIAL_WATCH_BURST_MS.forEach(function(delayMs) {
-            setTimeout(function () {
-                if (self.hasActiveVideoTrack()) {
-                    return;
-                }
-                self.sendWatchRequest();
-            }, delayMs);
-        });
-    }
-
     this.forceWatchRestartIfNeeded = function () {
         var streaming = !!this.streaming;
         var videoActive = this.hasActiveVideoTrack();
@@ -532,7 +519,6 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         console.debug('streaming: this.streaming handle is: ' + (this.streaming ? 'SET' : 'NULL'));
 
         this.sendWatchRequest();
-        this.sendInitialWatchBurst();
         this.scheduleWatchRetry();
         this.noRemoteVideo();
         this.ensureVideoPlayback();
