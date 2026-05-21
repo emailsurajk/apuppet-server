@@ -24,6 +24,8 @@ function initializeApp() {
 
     var videoLoader = new Loader($("#videoLoader"));
 
+    var pendingTextroomJoin = null;
+
     var remoteVideo = new RemoteVideo(
         $('#streamingRemoteVideo'),
         videoLoader,
@@ -229,6 +231,15 @@ function initializeApp() {
                             ui.showWarning(`Network problems`, 'Screen sharing', null, null, 2000);
                         },
 
+                        webrtcState: function (isUp) {
+                            console.info("streaming: WebRTC state is now " + (isUp ? "UP" : "DOWN"));
+                            if (isUp && pendingTextroomJoin) {
+                                console.info("streaming: WebRTC is up, now joining textroom to trigger Android encoder I-frame");
+                                remoteChat.startRoom(pendingTextroomJoin.sessionId, pendingTextroomJoin.pin);
+                                pendingTextroomJoin = null;
+                            }
+                        },
+
                         onmessage: function (msg, jsep) {
                             console.debug("streaming: got a message", msg, jsep);
                             var result = msg.result;
@@ -336,8 +347,11 @@ function initializeApp() {
         var sessionId = $('#input-session-id').val();
         var pin = $('#input-pin').val();
         ui.connStart();
+        
+        // Store credentials to join textroom exactly when streaming WebRTC is UP
+        pendingTextroomJoin = { sessionId: sessionId, pin: pin };
+        
         remoteVideo.startStreamMountpoint(sessionId, pin);
-        remoteChat.startRoom(sessionId, pin);
         e.preventDefault();
     });
 
