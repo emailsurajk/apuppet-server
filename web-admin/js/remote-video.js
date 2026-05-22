@@ -104,10 +104,44 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         this._applyGestureOverlayLayout();
     }
 
+    this._getRenderedActiveContentRect = function(videoRect, sourceWidth, sourceHeight, rotation) {
+        if (!videoRect || videoRect.width <= 0 || videoRect.height <= 0 || !sourceWidth || !sourceHeight) {
+            return null;
+        }
+
+        var contentAspect = (rotation === 90 || rotation === 270)
+            ? sourceHeight / sourceWidth
+            : sourceWidth / sourceHeight;
+        var videoAspect = videoRect.width / videoRect.height;
+
+        var contentWidth = videoRect.width;
+        var contentHeight = videoRect.height;
+        if (videoAspect > contentAspect) {
+            contentWidth = videoRect.height * contentAspect;
+        } else {
+            contentHeight = videoRect.width / contentAspect;
+        }
+
+        return {
+            left: videoRect.left + (videoRect.width - contentWidth) / 2,
+            top: videoRect.top + (videoRect.height - contentHeight) / 2,
+            width: contentWidth,
+            height: contentHeight
+        };
+    }
+
     this._applyGestureOverlayLayout = function() {
         var gestureElem = $('#deviceGestures');
-        var vw = parseFloat(this.remoteVideoElem.attr('width') || this.remoteVideoElem.width() || 0);
-        var vh = parseFloat(this.remoteVideoElem.attr('height') || this.remoteVideoElem.height() || 0);
+        var videoElem = this.remoteVideoElem.get(0);
+        var containerElem = document.getElementById('windowStream');
+        if (!videoElem || !containerElem) {
+            return;
+        }
+
+        var videoRect = videoElem.getBoundingClientRect();
+        var containerRect = containerElem.getBoundingClientRect();
+        var vw = videoRect.width;
+        var vh = videoRect.height;
         var sourceWidth = this.videoResolution ? this.videoResolution[0] : vw;
         var sourceHeight = this.videoResolution ? this.videoResolution[1] : vh;
         var touchRotation = (this.baseTouchRotationDeg + this.rotationDeg) % 360;
@@ -118,87 +152,32 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             return;
         }
 
-        if (this.baseTouchRotationDeg === 90 || this.baseTouchRotationDeg === 270) {
-            var contentAspect = sourceHeight / sourceWidth;
-            var videoAspect = vw / vh;
-            var contentWidth = vw;
-            var contentHeight = vh;
-
-            if (videoAspect > contentAspect) {
-                contentWidth = vh * contentAspect;
-            } else {
-                contentHeight = vw / contentAspect;
-            }
-
-            var left = (vw - contentWidth) / 2;
-            var top = (vh - contentHeight) / 2;
-            var overlayLeft = left;
-            var overlayTop = top;
-            var overlayWidth = contentWidth;
-            var overlayHeight = contentHeight;
-            var visualWidth = vw;
-            var visualHeight = vh;
-
-            if (this.rotationDeg === 90 || this.rotationDeg === 270) {
-                visualWidth = vh;
-                visualHeight = vw;
-                overlayWidth = contentHeight;
-                overlayHeight = contentWidth;
-
-                if (this.rotationDeg === 90) {
-                    overlayLeft = vh - top - contentHeight;
-                    overlayTop = left;
-                } else {
-                    overlayLeft = top;
-                    overlayTop = vw - left - contentWidth;
-                }
-            } else if (this.rotationDeg === 180) {
-                overlayLeft = vw - left - contentWidth;
-                overlayTop = vh - top - contentHeight;
-            }
-
-            var s = this._currentScale || 1;
-            gestureElem.css({
-                left: (overlayLeft * s) + 'px',
-                top: (overlayTop * s) + 'px',
-                width: (overlayWidth * s) + 'px',
-                height: (overlayHeight * s) + 'px',
-                right: 'auto',
-                bottom: 'auto',
-                outline: '2px dashed rgba(255, 0, 0, 0.85)',
-                backgroundColor: 'rgba(0, 0, 0, 0)'
-            });
-            console.info('touch-map: overlay layout',
-                'left=' + Math.round(overlayLeft),
-                'top=' + Math.round(overlayTop),
-                'size=' + Math.round(overlayWidth) + 'x' + Math.round(overlayHeight),
-                'baseTouchRotation=' + this.baseTouchRotationDeg,
-                'touchRotation=' + touchRotation,
-                'viewRotation=' + this.rotationDeg,
-                'video=' + Math.round(vw) + 'x' + Math.round(vh),
-                'visual=' + Math.round(visualWidth) + 'x' + Math.round(visualHeight),
-                'source=' + sourceWidth + 'x' + sourceHeight);
-        } else {
-            gestureElem.css({
-                left: '0',
-                top: '0',
-                width: '100%',
-                height: '100%',
-                right: '0',
-                bottom: '0',
-                outline: '2px dashed rgba(255, 0, 0, 0.65)',
-                backgroundColor: 'rgba(0, 0, 0, 0)'
-            });
-            console.info('touch-map: overlay layout',
-                'left=0',
-                'top=0',
-                'size=100%',
-                'baseTouchRotation=' + this.baseTouchRotationDeg,
-                'touchRotation=' + touchRotation,
-                'viewRotation=' + this.rotationDeg,
-                'video=' + Math.round(vw) + 'x' + Math.round(vh),
-                'source=' + sourceWidth + 'x' + sourceHeight);
+        var activeRect = this._getRenderedActiveContentRect(videoRect, sourceWidth, sourceHeight, touchRotation);
+        if (!activeRect) {
+            return;
         }
+
+        var overlayLeft = activeRect.left - containerRect.left;
+        var overlayTop = activeRect.top - containerRect.top;
+        gestureElem.css({
+            left: overlayLeft + 'px',
+            top: overlayTop + 'px',
+            width: activeRect.width + 'px',
+            height: activeRect.height + 'px',
+            right: 'auto',
+            bottom: 'auto',
+            outline: '2px dashed rgba(255, 0, 0, 0.85)',
+            backgroundColor: 'rgba(0, 0, 0, 0)'
+        });
+        console.info('touch-map: overlay layout',
+            'left=' + Math.round(overlayLeft),
+            'top=' + Math.round(overlayTop),
+            'size=' + Math.round(activeRect.width) + 'x' + Math.round(activeRect.height),
+            'baseTouchRotation=' + this.baseTouchRotationDeg,
+            'touchRotation=' + touchRotation,
+            'viewRotation=' + this.rotationDeg,
+            'video=' + Math.round(vw) + 'x' + Math.round(vh),
+            'source=' + sourceWidth + 'x' + sourceHeight);
     }
 
     this.rotateClockwise = function(){
