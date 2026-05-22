@@ -14,6 +14,10 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
     this.watchRestartAttempted = false;
     this.stallDetectorId = null;
     this.controlledStopInProgress = false;
+    this.freezeRecoveryInProgress = false;
+    this.lastObservedCurrentTime = null;
+    this.lastObservedDecodedFrames = null;
+    this.playbackFreezePollCount = 0;
     this.MAX_WATCH_RETRIES = 8;
     this.WATCH_RETRY_DELAY_MS = 1500;
     this.PLAY_RETRY_DELAY_MS = 250;
@@ -342,6 +346,44 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             clearInterval(this.stallDetectorId);
             this.stallDetectorId = null;
         }
+        this.lastObservedCurrentTime = null;
+        this.lastObservedDecodedFrames = null;
+        this.playbackFreezePollCount = 0;
+        this.freezeRecoveryInProgress = false;
+    }
+
+    this.getDecodedFrameCount = function (videoElem) {
+        if (!videoElem || typeof videoElem.getVideoPlaybackQuality !== 'function') {
+            return null;
+        }
+        try {
+            var quality = videoElem.getVideoPlaybackQuality();
+            if (!quality || !Number.isFinite(quality.totalVideoFrames)) {
+                return null;
+            }
+            return quality.totalVideoFrames;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    this.restartWatchCycle = function (reason, delayMs) {
+        if (this.freezeRecoveryInProgress) {
+            console.warn('video: restart already in progress, skipping duplicate request (' + reason + ')');
+            return;
+        }
+        this.freezeRecoveryInProgress = true;
+        this.playbackFreezePollCount = 0;
+        this.watchRetryCount = 0;
+        this.watchRestartAttempted = false;
+        console.warn('video: restarting watch cycle due to ' + reason);
+        this.sendControlledStop();
+
+        var self = this;
+        setTimeout(function () {
+            self.sendWatchRequest();
+            self.scheduleWatchRetry();
+        }, delayMs || 1500);
     }
 
     // Send a "stop" to Janus without triggering the full stopStreaming() teardown.
@@ -365,17 +407,47 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         var self = this;
         var pollCount = 0;
         var STALL_TIMEOUT_POLLS = 20;  // 20 x 3s = 60s - H.264 decoder may take time to start
+        var PLAYBACK_FREEZE_POLLS = 3;
         this.stallDetectorId = setInterval(function () {
             var v = self.remoteVideoElem.get(0);
             if (!v || !v.srcObject) {
                 self.cancelStallDetector();
                 return;
             }
+
+            var currentTime = Number.isFinite(v.currentTime) ? v.currentTime : 0;
+            var decodedFrames = self.getDecodedFrameCount(v);
             
             // Check if we have actual decoded frames
             if (v.readyState > 0 || v.videoWidth > 0) {
-                console.info('video: stall detector - decoder started (readyState=' + v.readyState + ', videoWidth=' + v.videoWidth + '), stopping detector');
-                self.cancelStallDetector();
+                var timeAdvanced = self.lastObservedCurrentTime !== null && currentTime > self.lastObservedCurrentTime + 0.05;
+                var framesAdvanced = decodedFrames !== null && self.lastObservedDecodedFrames !== null && decodedFrames > self.lastObservedDecodedFrames;
+                var playbackAdvanced = self.lastObservedCurrentTime === null || timeAdvanced || framesAdvanced;
+
+                if (playbackAdvanced) {
+                    if (self.playbackFreezePollCount > 0) {
+                        console.info('video: playback recovered, currentTime=' + currentTime.toFixed(2) + ', decodedFrames=' + decodedFrames);
+                    }
+                    self.playbackFreezePollCount = 0;
+                    self.freezeRecoveryInProgress = false;
+                    if ($('#streamingStatus').length) {
+                        $('#streamingStatus').addClass('d-none').text('');
+                    }
+                } else if (!v.paused && !v.ended) {
+                    self.playbackFreezePollCount++;
+                    console.warn('video: playback freeze poll ' + self.playbackFreezePollCount + '/' + PLAYBACK_FREEZE_POLLS
+                        + ' currentTime=' + currentTime.toFixed(2) + ' decodedFrames=' + decodedFrames + ' readyState=' + v.readyState);
+                    if (self.playbackFreezePollCount === 1) {
+                        self.ensureVideoPlayback();
+                    }
+                    if (self.playbackFreezePollCount >= PLAYBACK_FREEZE_POLLS) {
+                        self.restartWatchCycle('playback_freeze', 1000);
+                        return;
+                    }
+                }
+
+                self.lastObservedCurrentTime = currentTime;
+                self.lastObservedDecodedFrames = decodedFrames;
                 return;
             }
             
@@ -409,15 +481,7 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
                     return;
                 }
                 console.warn('video: stall detector - no data after ' + (STALL_TIMEOUT_POLLS * 3) + 's, resubscribing');
-                self.cancelStallDetector();
-                // Send controlled stop then re-watch to force Janus to renegotiate
-                self.sendControlledStop();
-                setTimeout(function () {
-                    self.watchRetryCount = 0;
-                    self.watchRestartAttempted = false;
-                    self.sendWatchRequest();
-                    self.scheduleWatchRetry();
-                }, 1500);
+                self.restartWatchCycle('startup_stall', 1500);
             }
         }, 3000);
     }
@@ -528,7 +592,6 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
         console.debug('video: playing event', e);
 
         if (obj.getStreamVideotracks().length > 0) {
-            obj.cancelStallDetector();
             obj.videoStats.start();
             remoteVideoElem = obj.remoteVideoElem.get(0);
             // Keep the device-reported resolution when available. Falling back to
@@ -537,6 +600,11 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
                 obj.setResolution(remoteVideoElem.videoWidth, remoteVideoElem.videoHeight);
             }
             obj.isVideoAlreadyPlayed = true;
+            obj.freezeRecoveryInProgress = false;
+            obj.playbackFreezePollCount = 0;
+            if (obj.stallDetectorId === null) {
+                obj.startStallDetector();
+            }
         } else {
             obj.videoStats.stop();
         }
