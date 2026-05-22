@@ -35,8 +35,8 @@ function GestureBuilder(divGesture, remoteChat){
         let x = point.clientX - activeRect.left;
         let y = point.clientY - activeRect.top;
 
-        x = Math.max(0, Math.min(activeRect.width, x));
-        y = Math.max(0, Math.min(activeRect.height, y));
+        x = Math.max(0, Math.min(Math.max(activeRect.width - 1, 0), x));
+        y = Math.max(0, Math.min(Math.max(activeRect.height - 1, 0), y));
 
         const mapped = this.mapDisplayToSource(x, y, activeRect.width, activeRect.height);
         const now = Date.now();
@@ -135,8 +135,8 @@ function GestureBuilder(divGesture, remoteChat){
             sy = nx * sourceHeight;
         }
 
-        sx = Math.max(0, Math.min(sourceWidth, sx));
-        sy = Math.max(0, Math.min(sourceHeight, sy));
+        sx = Math.max(0, Math.min(Math.max(sourceWidth - 1, 0), sx));
+        sy = Math.max(0, Math.min(Math.max(sourceHeight - 1, 0), sy));
         return [sx, sy];
     }
 
