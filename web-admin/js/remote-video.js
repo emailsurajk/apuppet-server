@@ -230,11 +230,13 @@ function RemoteVideo(remoteVideoElem, videoLoader, videoStats) {
             || decodedWidth <= 0 || decodedHeight <= 0) {
             return;
         }
-        $('#deviceGestures')
-            .attr('data-video-width', decodedWidth)
-            .attr('data-video-height', decodedHeight);
-        this.videoResolution = [decodedWidth, decodedHeight];
-        this._applyGestureOverlayLayout();
+        // Keep gesture mapping in the original shared-screen coordinate space
+        // announced by Android via streamingVideoResolution. The decoded video
+        // frame size may be codec-aligned (for example 608x1088) and does not
+        // match the coordinate space Android expects for touch injection.
+        console.info('touch-map: decoded video size ignored for gesture source',
+            'decoded=' + decodedWidth + 'x' + decodedHeight,
+            'gestureSource=' + (this.videoResolution ? this.videoResolution.join('x') : 'unset'));
     }
 
     this.ensureVideoPlayback = function () {
