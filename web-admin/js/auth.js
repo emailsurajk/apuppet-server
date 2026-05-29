@@ -20,7 +20,9 @@ var AuthManager = (function () {
             var parts = token.split('.');
             if (parts.length !== 3) return false;
             var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-            return payload.exp && (payload.exp * 1000) > Date.now();
+            // No exp claim → treat as valid (non-expiring token)
+            if (!payload.exp) return true;
+            return (payload.exp * 1000) > Date.now();
         } catch (e) {
             return false;
         }
@@ -107,8 +109,8 @@ var AuthManager = (function () {
                 var parts = query.jwt.split('.');
                 if (parts.length === 3) {
                     var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-                    var expMs = payload.exp ? payload.exp * 1000 : 0;
-                    if (expMs > Date.now()) {
+                    var expMs = payload.exp ? payload.exp * 1000 : (Date.now() + 86400000);
+                    if (!payload.exp || expMs > Date.now()) {
                         storeToken(query.jwt, expMs);
                         // Remove all params from URL without reloading
                         var cleanUrl = window.location.pathname + window.location.hash;
