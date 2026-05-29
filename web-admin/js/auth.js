@@ -90,8 +90,17 @@ var AuthManager = (function () {
         });
     }
 
+    function populateSessionFields(query) {
+        if (query.sessionId) {
+            $('#input-session-id').val(query.sessionId);
+        }
+        if (query.pin) {
+            $('#input-pin').val(query.pin);
+        }
+    }
+
     function init() {
-        // Support passing token via URL query parameter ?jwt=TOKEN
+        // Support passing token via URL query parameter ?jwt=TOKEN&sessionId=...&pin=...
         var query = getQueryParams(document.location.search);
         if (query.jwt) {
             try {
@@ -101,7 +110,7 @@ var AuthManager = (function () {
                     var expMs = payload.exp ? payload.exp * 1000 : 0;
                     if (expMs > Date.now()) {
                         storeToken(query.jwt, expMs);
-                        // Remove jwt param from URL without reloading
+                        // Remove all params from URL without reloading
                         var cleanUrl = window.location.pathname + window.location.hash;
                         window.history.replaceState({}, document.title, cleanUrl);
                     }
@@ -116,6 +125,7 @@ var AuthManager = (function () {
 
         if (isTokenValid(token, expiry)) {
             showDeviceForm();
+            populateSessionFields(query);
             initializeApp();
         } else {
             clearToken();
