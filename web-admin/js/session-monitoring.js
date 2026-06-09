@@ -11,6 +11,9 @@ function SessionMonitoring(remoteChat){
 
     this.start = function(){
         this.stop();
+        // Initialise to now so the criticalDelay window starts from the time
+        // monitoring begins, not from Unix epoch (which would always expire).
+        this.lastPongReceivedFrom = new Date().getTime();
         (function (self, delay) {
             self.pingInterval = window.setInterval(function () {
                 var currentTimestamp = new Date().getTime();

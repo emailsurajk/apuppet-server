@@ -1,13 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <title>aPuppet Web Administrator</title>
+    <title>Web Administrator</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	<meta name="Content-Type" content="Open source web application to access Android devices remotely (remote support program)" />
 
-    <link rel="shortcut icon" href="static/images/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="static/images/cropped-icon1-32x32.png" type="image/x-icon">
 
     <link rel="stylesheet" href="dist/css/deps.min.css" type="text/css"/>
     <link rel="stylesheet" href="dist/css/app.min.css" type="text/css"/>
@@ -16,13 +16,51 @@
 
     <div id="pageLoader" class="loader loader-default is-active" data-text="Loading .."></div>
 
-    <!-- Login form -->
-    <form id="login-form">
+    <!-- Auth Login Form -->
+    <div id="auth-form-wrapper">
+        <form id="auth-form" autocomplete="on">
+            <div class="container" id="auth-form-container">
+                <div class="row justify-content-center">
+                    <div class="col-md-6 text-center">
+                        <h1 class="title-start">Remote - Sign In</h1>
+                    </div>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-md-6 text-center">
+                        <p>Sign in to your account to continue</p>
+                    </div>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div id="auth-error" class="alert alert-danger d-none" role="alert"></div>
+                        <div class="form-group">
+                            <label for="auth-email">Email</label>
+                            <input type="email" class="form-control input-start" id="auth-email"
+                                   placeholder="your@email.com" autocomplete="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="auth-password">Password</label>
+                            <input type="password" class="form-control input-start" id="auth-password"
+                                   placeholder="Password" autocomplete="current-password" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-md-6 text-center">
+                        <button type="submit" id="auth-submit" class="btn btn-primary btn-start">Sign In</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Device Session Login Form -->
+    <form id="login-form" class="d-none">
 
         <div class="container" id="login-form-container">
             <div class="row justify-content-center">
                 <div class="col-md-6 text-center">
-                    <h1 class="title-start">aPuppet - Ready to Control!</h1>
+                    <h1 class="title-start">Remote - Ready to Control!</h1>
                 </div>
             </div>
             <div class="row justify-content-center">
@@ -65,13 +103,15 @@
         <div class="row justify-content-center">
             <div class="col-md-4 text-center">
                 <span class="link" id="btnNotifications">Expand Status Bar</span>
+                &nbsp;|&nbsp;
+                <span class="link" id="btnRotateVideo">Rotate View (0°)</span>
             </div>
         </div>
         <div class="row justify-content-center">
             <div class="col-md-auto justify-content-center text-center p-0" id="windowStream">
                 <div id="videoLoader" class="loader loader-bouncing"></div>
                 <div id="deviceGestures"></div>
-                <video class="rounded centered border" id="streamingRemoteVideo" autoplay playsinline
+                <video class="rounded centered border" id="streamingRemoteVideo" autoplay playsinline muted
                     width="540" height="1064"></video>
             </div>
         </div>
@@ -128,7 +168,7 @@
     <footer class="mt-auto">
         <div class="container">
             <div class="row justify-content-center p-1">
-                <a href="https://apuppet.org">aPuppet</a>&nbsp;- Open Source Remote Control for Android&nbsp;&copy;&nbsp;<script type="text/javascript">document.write(new Date().getFullYear().toString())</script>&nbsp;<a href="https://h-mdm.com">Headwind MDM</a>
+              &copy; <script type="text/javascript">document.write(new Date().getFullYear().toString())</script> <a href="https://vivvi.net">Vivvi</a>. All rights reserved.
             </div>
         </div>
     </footer>

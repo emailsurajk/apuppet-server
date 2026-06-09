@@ -1,4 +1,4 @@
-$(document).ready(function () {
+function initializeApp() {
     var ui = new UI();
     window['ui'] = ui;
 
@@ -24,6 +24,8 @@ $(document).ready(function () {
 
     var videoLoader = new Loader($("#videoLoader"));
 
+    var pendingTextroomJoin = null;
+
     var remoteVideo = new RemoteVideo(
         $('#streamingRemoteVideo'),
         videoLoader,
@@ -45,6 +47,55 @@ $(document).ready(function () {
     console.debug('actual Janus servers:', janusServers);
     console.debug('janus debug level:', janusDebugLevel);
     window['debugUtils'] = new DebugUtils(remoteChat);
+
+    // Video diagnostics - call this from console if video isn't displaying
+    window['videoDiag'] = function() {
+        var v = document.getElementById('streamingRemoteVideo');
+        var ws = document.getElementById('windowStream');
+        if (!v) {
+            console.error('videoDiag: video element not found');
+            return;
+        }
+        console.group('VIDEO DIAGNOSTICS');
+        console.log('Video Element:', {
+            tagName: v.tagName,
+            id: v.id,
+            srcObject: !!v.srcObject,
+            srcObjectTracks: v.srcObject ? v.srcObject.getTracks().length : 0,
+            srcObjectVideoTracks: v.srcObject ? v.srcObject.getVideoTracks().length : 0,
+            width: v.width,
+            height: v.height,
+            videoWidth: v.videoWidth,
+            videoHeight: v.videoHeight,
+            readyState: v.readyState,
+            networkState: v.networkState,
+            paused: v.paused,
+            ended: v.ended,
+            currentTime: v.currentTime.toFixed(2),
+            duration: v.duration > 0 ? v.duration.toFixed(2) : 'unknown',
+            buffered: v.buffered.length > 0 ? v.buffered.end(0).toFixed(2) + 's' : 'none',
+        });
+        console.log('Video Visibility:', {
+            display: window.getComputedStyle(v).display,
+            visibility: window.getComputedStyle(v).visibility,
+            opacity: window.getComputedStyle(v).opacity,
+            width: window.getComputedStyle(v).width,
+            height: window.getComputedStyle(v).height,
+        });
+        console.log('windowStream Container:', {
+            display: ws ? window.getComputedStyle(ws).display : 'NOT_FOUND',
+            position: ws ? window.getComputedStyle(ws).position : 'N/A',
+            width: ws ? window.getComputedStyle(ws).width : 'N/A',
+            height: ws ? window.getComputedStyle(ws).height : 'N/A',
+        });
+        console.log('Video in DOM:', {
+            inDOM: !!v.offsetParent || v.display !== 'none',
+            offsetParent: !!v.offsetParent,
+            clientWidth: v.clientWidth,
+            clientHeight: v.clientHeight,
+        });
+        console.groupEnd();
+    };
 
     ui.on('CheatCodes.onCheatEntered', function(cheat){
         if (cheat === 'needtodebug') {
@@ -80,6 +131,7 @@ $(document).ready(function () {
 
                         error: function (error) {
                             console.error("textroom: error attaching plugin: ", error);
+                            ui.initAbort();
                             bootbox.alert("Ошибка подключения к сессии: " + error);
                         },
 
@@ -171,11 +223,21 @@ $(document).ready(function () {
 
                         error: function (error) {
                             console.error("streaming: error attaching plugin", error);
+                            ui.initAbort();
                             ui.showError(`'Streaming error: ${error}`, 'streaming_error');
                         },
 
                         slowLink: function(uplink, lost){
                             ui.showWarning(`Network problems`, 'Screen sharing', null, null, 2000);
+                        },
+
+                        webrtcState: function (isUp) {
+                            console.info("streaming: WebRTC state is now " + (isUp ? "UP" : "DOWN"));
+                            if (isUp && pendingTextroomJoin) {
+                                console.info("streaming: WebRTC is up, now joining textroom to trigger Android encoder I-frame");
+                                remoteChat.startRoom(pendingTextroomJoin.sessionId, pendingTextroomJoin.pin);
+                                pendingTextroomJoin = null;
+                            }
                         },
 
                         onmessage: function (msg, jsep) {
@@ -189,7 +251,13 @@ $(document).ready(function () {
                                     } else if (result.status === 'started') {
                                         $('#streamingStatus').text("Started").removeClass('d-none');
                                     } else if (result.status === 'stopped') {
-                                        remoteVideo.stopStreaming();
+                                        // Only do a full teardown if the stop was server-initiated.
+                                        // If we sent the stop ourselves (stall detector / restart), skip teardown.
+                                        if (remoteVideo.consumeControlledStop()) {
+                                            console.info('streaming: controlled stop acknowledged by Janus, proceeding with restart');
+                                        } else {
+                                            remoteVideo.stopStreaming();
+                                        }
                                     }
                                 } else if (msg.streaming === 'event') {
                                     // todo: simulcast in place? Is VP9/SVC in place?
@@ -199,11 +267,17 @@ $(document).ready(function () {
                             // check error
                             else if (msg.error) {
                                 console.error('streaming: onmessage error', msg.error);
-                                ui.connAbort();
-
-                                if (msg.error_code === 455){
-                                    ui.showError(`Session ${remoteVideo.mountpointId} does not exist`, 'no_session');
+                                if (msg.error_code === 455) {
+                                    // The mountpoint may be created slightly later than the first watch request.
+                                    console.warn(`streaming: mountpoint ${remoteVideo.mountpointId} is not ready yet, retrying watch`);
+                                    remoteVideo.refreshWatchIfNeeded('stream_not_ready');
+                                } else if (msg.error && msg.error.toString().toLowerCase().indexOf('already watching') !== -1) {
+                                    // Benign: we sent a duplicate watch request (e.g. from stall detector restart).
+                                    // The existing subscription is intact — just consume any pending controlled-stop flag.
+                                    remoteVideo.consumeControlledStop();
+                                    console.info('streaming: duplicate watch ignored (already watching), continuing');
                                 } else {
+                                    ui.connAbort();
                                     ui.showError(msg["error"], 'streaming_message_error');
                                     remoteVideo.stopStreaming();
                                 }
@@ -241,7 +315,15 @@ $(document).ready(function () {
                         },
 
                         onremotestream: function (stream) {
-                            console.info("streaming: got remote stream", stream);
+                            var trackCount = (stream ? stream.getTracks().length : 0);
+                            var videoTrackCount = (stream ? stream.getVideoTracks().length : 0);
+                            var audioTrackCount = (stream ? stream.getAudioTracks().length : 0);
+                            console.info("streaming: got remote stream, total=" + trackCount + ", video=" + videoTrackCount + ", audio=" + audioTrackCount, stream);
+                            if (stream && videoTrackCount > 0) {
+                                console.info('streaming: remote stream has ' + videoTrackCount + ' video track(s) - ready for display');
+                            } else {
+                                console.warn('streaming: remote stream missing video tracks! This will not display.');
+                            }
                             remoteVideo.setStream(stream);
                         },
                         oncleanup: function () {
@@ -265,8 +347,11 @@ $(document).ready(function () {
         var sessionId = $('#input-session-id').val();
         var pin = $('#input-pin').val();
         ui.connStart();
+        
+        // Store credentials to join textroom exactly when streaming WebRTC is UP
+        pendingTextroomJoin = { sessionId: sessionId, pin: pin };
+        
         remoteVideo.startStreamMountpoint(sessionId, pin);
-        remoteChat.startRoom(sessionId, pin);
         e.preventDefault();
     });
 
@@ -298,6 +383,14 @@ $(document).ready(function () {
         }
     });
 
+    // Rotate video button
+    $('#btnRotateVideo').on('click', function(e){
+        if(remoteVideo){
+            var deg = remoteVideo.rotateClockwise();
+            $('#btnRotateVideo').text('Rotate View (' + deg + '°)');
+        }
+    });
+
     // Disconnect button
     $('#btnDisconnect').on('click', function(e){
         ui.emit('Session.Disconnect');
@@ -314,4 +407,4 @@ $(document).ready(function () {
     $('#debugClose').on('click', function(e){
         window.debugUtils.disable();
     });
-});
+}

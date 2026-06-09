@@ -4,8 +4,17 @@ function Commands(remoteChat, remoteVideo){
     this.commands = new Map();
     var obj = this;
 
-    this.commands.set('streamingVideoResolution', function(w, h){
+    this.commands.set('streamingVideoResolution', function(w, h, rotation){
         obj.removeVideo.setResolution(w, h);
+        // Keep video auto-rotation disabled, but preserve the source rotation so
+        // gesture mapping uses the same orientation metadata the overlay uses.
+        var androidRotation = ((parseInt(rotation, 10) || 0) % 360 + 360) % 360;
+        var touchRotation = androidRotation;
+        obj.removeVideo.setTouchRotation(touchRotation);
+        console.info('touch-map: resolution metadata',
+            'source=' + w + 'x' + h,
+            'androidRotation=' + androidRotation,
+            'touchRotation=' + touchRotation);
     });
     this.commands.set('pong', function(timestamp){
         ui.emit('SessionMonitoring.onPong', timestamp);

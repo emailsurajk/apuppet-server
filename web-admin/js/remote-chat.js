@@ -183,6 +183,10 @@ function RemoteChat(chatElem, chatForm, messageInput, sendButton) {
         if (!data) {
             return;
         }
+        if (!this.textroom || typeof this.textroom.data !== 'function') {
+            console.warn('textroom: message dropped because textroom is not ready yet', data);
+            return;
+        }
 
         var messageData = {
             textroom: "message",
@@ -211,6 +215,9 @@ function RemoteChat(chatElem, chatForm, messageInput, sendButton) {
     /* Messages Processing */
     this.processIncomingMessage = function (message, from, date, isWhisper){
         console.debug('chat: incoming message', message, from, date, isWhisper);
+        if (message && message.indexOf('streamingVideoResolution') === 0) {
+            console.info('touch-map: incoming command', message);
+        }
         if (this.commandsProcessor !== null){
             this.commandsProcessor.process(message);
         }
